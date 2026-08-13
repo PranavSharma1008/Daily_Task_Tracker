@@ -329,12 +329,12 @@
         let isUrgent = false;
 
         if (diffDays < 0) {
-            // Overdue relative to viewed date
+            // Overdue relative to viewed date (Past due date -> Normal overdue pill, NO High Alert Red Card)
             const absDays = Math.abs(diffDays);
             dueLabel = `🚨 OVERDUE! Submission was ${dueFormatted} (${absDays}d overdue)`;
             duePillClass = 'overdue';
             if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'urgent';
-            isUrgent = true;
+            isUrgent = false;
         } else if (diffDays === 0) {
             // Due Today relative to viewed date
             dueLabel = `🔴 PRESENT DAY ALERT! Due Today (${dueFormatted})`;
