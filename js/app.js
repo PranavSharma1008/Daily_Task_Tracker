@@ -48,7 +48,7 @@
     // Clear any existing PIN lock permanently
     localStorage.removeItem('daytask_pin');
 
-    const savedSelectedDate = localStorage.getItem(STORAGE_KEY_SELECTED_DATE);
+    const savedSelectedDate = sessionStorage.getItem(STORAGE_KEY_SELECTED_DATE) || localStorage.getItem(STORAGE_KEY_SELECTED_DATE);
     let currentDate = savedSelectedDate ? parseISODateString(savedSelectedDate) : new Date(); // The selected date
     let activeFilter = 'all'; // 'all' | 'pending' | 'completed'
     let searchQuery = '';
@@ -486,6 +486,7 @@
     function renderAll() {
         const dateStr = toISODateString(currentDate);
         try {
+            sessionStorage.setItem(STORAGE_KEY_SELECTED_DATE, dateStr);
             localStorage.setItem(STORAGE_KEY_SELECTED_DATE, dateStr);
         } catch (e) {}
 
