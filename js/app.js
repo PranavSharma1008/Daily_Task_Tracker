@@ -308,7 +308,7 @@
             };
         }
 
-        const baseDate = referenceDate ? new Date(referenceDate) : (typeof currentDate !== 'undefined' ? new Date(currentDate) : new Date());
+        const baseDate = referenceDate ? new Date(referenceDate) : new Date();
         baseDate.setHours(0, 0, 0, 0);
 
         const due = parseISODateString(dueDateStr);
