@@ -293,7 +293,7 @@
     // ==========================================
     // DYNAMIC PRIORITY & URGENCY CALCULATOR
     // ==========================================
-    function computeUrgencyAndPriority(dueDateStr, priorityMode, alertDaysThreshold = 2) {
+    function computeUrgencyAndPriority(dueDateStr, priorityMode = 'auto', alertDaysThreshold = 2, referenceDate = null) {
         const threshold = parseInt(alertDaysThreshold != null ? alertDaysThreshold : 2, 10);
 
         if (!dueDateStr) {
@@ -308,13 +308,13 @@
             };
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const baseDate = referenceDate ? new Date(referenceDate) : (typeof currentDate !== 'undefined' ? new Date(currentDate) : new Date());
+        baseDate.setHours(0, 0, 0, 0);
 
         const due = parseISODateString(dueDateStr);
         due.setHours(0, 0, 0, 0);
 
-        const diffTime = due.getTime() - today.getTime();
+        const diffTime = due.getTime() - baseDate.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         // Format dates for display
@@ -329,14 +329,14 @@
         let isUrgent = false;
 
         if (diffDays < 0) {
-            // Overdue
+            // Overdue relative to viewed date
             const absDays = Math.abs(diffDays);
             dueLabel = `🚨 OVERDUE! Submission was ${dueFormatted} (${absDays}d overdue)`;
             duePillClass = 'overdue';
             if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'urgent';
             isUrgent = true;
         } else if (diffDays === 0) {
-            // Due Today / Submission Day
+            // Due Today relative to viewed date
             dueLabel = `🔴 PRESENT DAY ALERT! Due Today (${dueFormatted})`;
             duePillClass = 'today';
             if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'urgent';
