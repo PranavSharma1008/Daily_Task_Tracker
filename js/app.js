@@ -1096,11 +1096,6 @@
             formEl.addEventListener('submit', handleAddTaskSubmit);
         }
 
-        const btnAddEl = document.getElementById('btn-add-task');
-        if (btnAddEl) {
-            btnAddEl.addEventListener('click', handleAddTaskSubmit);
-        }
-
         // Urgent Banner Action Button
         elements.btnViewUrgent.addEventListener('click', () => {
             activeFilter = 'pending';
