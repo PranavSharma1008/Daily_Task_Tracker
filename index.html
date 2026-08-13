@@ -132,13 +132,14 @@
                 </div>
 
                 <!-- URGENT DEADLINES REMINDER BANNER -->
-                <div class="urgent-banner hidden" id="urgent-deadline-banner">
-                    <div class="banner-icon">⚠️</div>
-                    <div class="banner-content">
-                        <h4 id="banner-title">Upcoming Task Deadlines</h4>
-                        <p id="banner-desc">You have tasks ending soon!</p>
+                <!-- URGENT DEADLINES INDIVIDUAL RED ALERT CARDS CONTAINER -->
+                <div class="urgent-wrapper hidden" id="urgent-deadline-banner">
+                    <div class="urgent-wrapper-header">
+                        <h4 class="urgent-title-label" id="banner-title">🚨 High Alert Reminders</h4>
                     </div>
-                    <button class="btn-banner-action" id="btn-view-urgent">Filter Urgent</button>
+                    <div class="urgent-cards-container" id="urgent-cards-container">
+                        <!-- Individual red alert cards generated per urgent task -->
+                    </div>
                 </div>
             </section>
 

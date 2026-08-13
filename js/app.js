@@ -62,11 +62,10 @@
         pendingEmptyState: document.getElementById('pending-empty-state'),
         completedEmptyState: document.getElementById('completed-empty-state'),
 
-        // Urgent Banner
+        // Urgent Banner & Individual Red Alert Cards
         urgentDeadlineBanner: document.getElementById('urgent-deadline-banner'),
         bannerTitle: document.getElementById('banner-title'),
-        bannerDesc: document.getElementById('banner-desc'),
-        btnViewUrgent: document.getElementById('btn-view-urgent'),
+        urgentCardsContainer: document.getElementById('urgent-cards-container'),
 
         // Edit Modal
         editModal: document.getElementById('edit-modal'),
@@ -125,13 +124,11 @@
             const tasks = allData[dateKey];
             tasks.forEach(task => {
                 if (!task.completed) {
-                    // Check if pending task belongs to dateStr:
-                    // 1. Created on dateStr
-                    // 2. Or has an End Date (dueDate) that is on or before dateStr (Overdue / Due Today rollover)
-                    const isCreatedToday = (dateKey === dateStr);
+                    // All pending uncompleted tasks created on or before dateStr remain visible across refreshes
+                    const isCreatedOnOrBefore = (dateKey <= dateStr);
                     const isOverdueOrDue = (task.dueDate && task.dueDate <= dateStr);
 
-                    if (isCreatedToday || isOverdueOrDue) {
+                    if (isCreatedOnOrBefore || isOverdueOrDue) {
                         if (!pendingForDate.some(t => t.id === task.id)) {
                             pendingForDate.push(task);
                         }
@@ -359,15 +356,47 @@
 
             const presentDayTasks = urgentTasks.filter(t => t.dueInfo.diffDays === 0);
             if (presentDayTasks.length > 0) {
-                elements.bannerTitle.textContent = `🔴 Present Day Alert: ${presentDayTasks.length} Task${presentDayTasks.length > 1 ? 's' : ''} Due TODAY!`;
+                elements.bannerTitle.textContent = `🚨 High Alert: ${urgentTasks.length} Urgent Task${urgentTasks.length > 1 ? 's' : ''} Require Attention!`;
             } else {
                 elements.bannerTitle.textContent = `🚨 High Alert: ${urgentTasks.length} Task${urgentTasks.length > 1 ? 's' : ''} Reached Your Urgent Threshold!`;
             }
-            
-            const taskTitles = urgentTasks.slice(0, 3).map(t => `"${t.title}" (${t.dueInfo.dueLabel})`).join(', ');
-            elements.bannerDesc.textContent = taskTitles + (urgentTasks.length > 3 ? ` and ${urgentTasks.length - 3} more` : '');
+
+            elements.urgentCardsContainer.innerHTML = '';
+
+            urgentTasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = `urgent-red-card ${task.dueInfo.duePillClass}`;
+                card.dataset.id = task.id;
+
+                const icon = task.dueInfo.diffDays === 0 ? '🔴' : (task.dueInfo.diffDays < 0 ? '🚨' : '🔥');
+
+                card.innerHTML = `
+                    <div class="urgent-red-left">
+                        <span class="urgent-red-icon">${icon}</span>
+                        <div class="urgent-red-content">
+                            <h4 class="urgent-red-title">${escapeHTML(task.title)}</h4>
+                            <span class="urgent-red-status ${task.dueInfo.duePillClass}">${escapeHTML(task.dueInfo.dueLabel)}</span>
+                        </div>
+                    </div>
+                    <div class="urgent-red-actions">
+                        <button class="btn-urgent-action complete" title="Mark Done">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            <span>Mark Done</span>
+                        </button>
+                    </div>
+                `;
+
+                // Quick Complete Action
+                const completeBtn = card.querySelector('.btn-urgent-action.complete');
+                completeBtn.addEventListener('click', () => {
+                    toggleTaskComplete(task.id);
+                });
+
+                elements.urgentCardsContainer.appendChild(card);
+            });
         } else {
             elements.urgentDeadlineBanner.classList.add('hidden');
+            elements.urgentCardsContainer.innerHTML = '';
         }
     }
 
@@ -414,28 +443,10 @@
         );
     }
 
-    function cleanupOldTestTasks() {
-        const allData = loadAllData();
-        let changed = false;
-
-        Object.keys(allData).forEach(dateKey => {
-            const originalLen = allData[dateKey].length;
-            allData[dateKey] = allData[dateKey].filter(t => !t.title.toLowerCase().includes('leetcode'));
-            if (allData[dateKey].length < originalLen) {
-                changed = true;
-            }
-        });
-
-        if (changed) {
-            saveAllData(allData);
-        }
-    }
-
     // ==========================================
     // APP INITIALIZATION & CORE RENDERING
     // ==========================================
     function init() {
-        cleanupOldTestTasks();
         initTheme();
         bindEvents();
         renderAll();
@@ -790,22 +801,29 @@
     }
 
     function deleteTask(taskId) {
-        const allData = loadAllData();
-        let deleted = false;
-
-        Object.keys(allData).forEach(dateKey => {
-            const originalLength = allData[dateKey].length;
-            allData[dateKey] = allData[dateKey].filter(t => t.id !== taskId);
-            if (allData[dateKey].length < originalLength) {
-                deleted = true;
-            }
-        });
-
-        if (deleted) {
-            saveAllData(allData);
-            renderAll();
-            showToast('Task deleted successfully');
+        const cardEl = document.querySelector(`.task-card[data-id="${taskId}"]`);
+        if (cardEl) {
+            cardEl.classList.add('deleting');
         }
+
+        setTimeout(() => {
+            const allData = loadAllData();
+            let deleted = false;
+
+            Object.keys(allData).forEach(dateKey => {
+                const originalLength = allData[dateKey].length;
+                allData[dateKey] = allData[dateKey].filter(t => t.id !== taskId);
+                if (allData[dateKey].length < originalLength) {
+                    deleted = true;
+                }
+            });
+
+            if (deleted) {
+                saveAllData(allData);
+                renderAll();
+                showToast('Task deleted successfully');
+            }
+        }, 150);
     }
 
     function updateTask(taskId, newTitle, newPriority, newDueDate, newAlertDays, newTime, newCategory) {
