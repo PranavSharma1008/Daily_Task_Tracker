@@ -37,10 +37,6 @@
             </div>
 
             <div class="header-actions">
-                <button id="btn-open-backup" class="btn-icon" title="Data Backup & Safety Vault" aria-label="Data Safety Vault">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                </button>
-
                 <button id="theme-toggle" class="btn-icon" title="Toggle Theme" aria-label="Toggle Dark/Light Mode">
                     <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
                     <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
@@ -242,7 +238,7 @@
                     <div class="section-title-bar">
                         <h3>
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            Pending Tasks
+                            Pending / Not Completed Tasks
                         </h3>
                         <span class="badge" id="pending-count-badge">0</span>
                     </div>
@@ -383,45 +379,6 @@
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" id="btn-cancel-extend">Cancel</button>
                     <button type="button" class="btn-primary" id="btn-save-extend">Apply New Date</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- DATA SAFETY & BACKUP VAULT MODAL -->
-    <div class="modal-overlay hidden" id="backup-modal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>🛡️ Data Safety & Vault</h3>
-                <button class="btn-icon" id="btn-close-backup-modal" title="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                </button>
-            </div>
-            
-            <div class="vault-sections">
-                <!-- Backup & Export -->
-                <div class="vault-box">
-                    <div class="vault-box-header">
-                        <h4>📥 Export Backup File</h4>
-                        <p>Save all your daily tasks, deadlines, and history into a secure JSON backup file.</p>
-                    </div>
-                    <button class="btn-primary" id="btn-export-json">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                        Download Data Backup
-                    </button>
-                </div>
-
-                <!-- Restore Backup -->
-                <div class="vault-box">
-                    <div class="vault-box-header">
-                        <h4>📤 Restore from Backup</h4>
-                        <p>Upload your JSON backup file to restore all your tasks anytime on any browser.</p>
-                    </div>
-                    <input type="file" id="import-json-file" accept=".json" class="hidden">
-                    <button class="btn-secondary" id="btn-import-json">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                        Upload Backup File
-                    </button>
                 </div>
             </div>
         </div>

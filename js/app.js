@@ -81,13 +81,6 @@
         btnCloseEditModal: document.getElementById('btn-close-edit-modal'),
         btnCancelEdit: document.getElementById('btn-cancel-edit'),
 
-        // Backup Vault
-        btnOpenBackup: document.getElementById('btn-open-backup'),
-        backupModal: document.getElementById('backup-modal'),
-        btnCloseBackupModal: document.getElementById('btn-close-backup-modal'),
-        btnExportJson: document.getElementById('btn-export-json'),
-        btnImportJson: document.getElementById('btn-import-json'),
-        importJsonFile: document.getElementById('import-json-file'),
         // Extend Modal
         extendModal: document.getElementById('extend-modal'),
         btnCloseExtendModal: document.getElementById('btn-close-extend-modal'),
@@ -132,13 +125,24 @@
             const tasks = allData[dateKey];
             tasks.forEach(task => {
                 if (!task.completed) {
-                    if (dateKey === dateStr) {
-                        pendingForDate.push(task);
+                    // Check if pending task belongs to dateStr:
+                    // 1. Created on dateStr
+                    // 2. Or has an End Date (dueDate) that is on or before dateStr (Overdue / Due Today rollover)
+                    const isCreatedToday = (dateKey === dateStr);
+                    const isOverdueOrDue = (task.dueDate && task.dueDate <= dateStr);
+
+                    if (isCreatedToday || isOverdueOrDue) {
+                        if (!pendingForDate.some(t => t.id === task.id)) {
+                            pendingForDate.push(task);
+                        }
                     }
                 } else {
+                    // Completed task: belongs to the date it was completed on!
                     const taskCompletedDate = task.completedDate || dateKey;
                     if (taskCompletedDate === dateStr) {
-                        completedForDate.push(task);
+                        if (!completedForDate.some(t => t.id === task.id)) {
+                            completedForDate.push(task);
+                        }
                     }
                 }
             });
@@ -1124,21 +1128,6 @@
             }
         });
 
-        // Backup Vault Events
-        elements.btnOpenBackup.addEventListener('click', openBackupModal);
-        elements.btnCloseBackupModal.addEventListener('click', closeBackupModal);
-        elements.backupModal.addEventListener('click', (e) => {
-            if (e.target === elements.backupModal) closeBackupModal();
-        });
-
-        elements.btnExportJson.addEventListener('click', exportDataBackup);
-        elements.btnImportJson.addEventListener('click', () => elements.importJsonFile.click());
-        elements.importJsonFile.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files[0]) {
-                importDataBackup(e.target.files[0]);
-                e.target.value = '';
-            }
-        });
         // Tab Focus & Visibility Auto-Refresh Engine (Zero Hard Refreshes Needed!)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
