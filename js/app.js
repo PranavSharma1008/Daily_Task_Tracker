@@ -7,6 +7,38 @@
     'use strict';
 
     // ==========================================
+    // DATE HELPERS (STRICT HOISTING FIX)
+    // ==========================================
+    function toISODateString(date) {
+        if (!date || !(date instanceof Date) || isNaN(date)) return new Date().toISOString().split('T')[0];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function parseISODateString(isoStr) {
+        if (!isoStr || typeof isoStr !== 'string' || !isoStr.includes('-')) {
+            return new Date();
+        }
+        const parts = isoStr.split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        if (isNaN(year) || isNaN(month) || isNaN(day)) {
+            return new Date();
+        }
+        return new Date(year, month, day);
+    }
+
+    function isSameDay(d1, d2) {
+        if (!d1 || !d2) return false;
+        return d1.getFullYear() === d2.getFullYear() &&
+            d1.getMonth() === d2.getMonth() &&
+            d1.getDate() === d2.getDate();
+    }
+
+    // ==========================================
     // STATE & CONSTANTS
     // ==========================================
     const STORAGE_KEY_DATA = 'daytask_data';
@@ -477,9 +509,11 @@
             elements.currentDateHeading.textContent = currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
 
-        // Date navigator display
+        // Date navigator display - always display true weekday name (e.g. Thursday, Friday)
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        elements.displayDayName.textContent = isToday ? 'Today' : dayNames[currentDate.getDay()];
+        const dayNameStr = dayNames[currentDate.getDay()];
+        elements.displayDayName.textContent = isToday ? `${dayNameStr} (Today)` : dayNameStr;
+
         elements.displayFullDate.textContent = currentDate.toLocaleDateString('en-US', {
             month: 'long',
             day: 'numeric',
