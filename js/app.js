@@ -11,11 +11,13 @@
     // ==========================================
     const STORAGE_KEY_DATA = 'daytask_data';
     const STORAGE_KEY_THEME = 'daytask_theme';
+    const STORAGE_KEY_SELECTED_DATE = 'daytask_selected_date';
 
     // Clear any existing PIN lock permanently
     localStorage.removeItem('daytask_pin');
 
-    let currentDate = new Date(); // The selected date
+    const savedSelectedDate = localStorage.getItem(STORAGE_KEY_SELECTED_DATE);
+    let currentDate = savedSelectedDate ? parseISODateString(savedSelectedDate) : new Date(); // The selected date
     let activeFilter = 'all'; // 'all' | 'pending' | 'completed'
     let searchQuery = '';
     let draggedTaskId = null;
@@ -124,11 +126,8 @@
             const tasks = allData[dateKey];
             tasks.forEach(task => {
                 if (!task.completed) {
-                    // All pending uncompleted tasks created on or before dateStr remain visible across refreshes
-                    const isCreatedOnOrBefore = (dateKey <= dateStr);
-                    const isOverdueOrDue = (task.dueDate && task.dueDate <= dateStr);
-
-                    if (isCreatedOnOrBefore || isOverdueOrDue) {
+                    // Tasks ONLY show in the main task list for the exact creation date
+                    if (dateKey === dateStr) {
                         if (!pendingForDate.some(t => t.id === task.id)) {
                             pendingForDate.push(task);
                         }
@@ -454,6 +453,10 @@
 
     function renderAll() {
         const dateStr = toISODateString(currentDate);
+        try {
+            localStorage.setItem(STORAGE_KEY_SELECTED_DATE, dateStr);
+        } catch (e) {}
+
         const tasks = getTasksForDate(dateStr);
 
         renderHeaderDate();
