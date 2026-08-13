@@ -369,13 +369,12 @@
     function checkUrgentTaskDeadlines() {
         const allData = loadAllData();
         const urgentTasks = [];
-        const realToday = new Date();
 
         Object.keys(allData).forEach(dateKey => {
             const tasks = allData[dateKey];
             tasks.forEach(task => {
                 if (!task.completed && task.dueDate) {
-                    const info = computeUrgencyAndPriority(task.dueDate, task.priority || 'auto', task.alertDays != null ? task.alertDays : 2, realToday);
+                    const info = computeUrgencyAndPriority(task.dueDate, task.priority || 'auto', task.alertDays != null ? task.alertDays : 2, currentDate);
                     if (info.isUrgent) {
                         urgentTasks.push({ ...task, dueInfo: info, taskDateStr: dateKey });
                     }
