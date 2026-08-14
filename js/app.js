@@ -327,28 +327,52 @@
         return hasRemoved;
     }
 
+    let remotePullInFlight = false;
+
+    // Pull the cloud copy, merge it with the local copy (safe in both
+    // directions), persist only when something actually changed, then render.
+    // Called on load and repeatedly while the app is open so changes made on
+    // other devices appear automatically without a manual refresh.
+    async function pullFromServer() {
+        if (REMOTE_DISABLED) {
+            setSyncStatus('file');
+            return;
+        }
+        if (remotePullInFlight) return;
+        remotePullInFlight = true;
+        try {
+            const res = await fetch(API_ENDPOINT);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const remote = await res.json();
+            const local = loadAllData();
+            const merged = mergeDataStores(local, remote);
+            if (JSON.stringify(merged) !== JSON.stringify(local)) {
+                saveAllData(merged);
+            }
+            setSyncStatus('synced');
+        } catch (e) {
+            console.warn('Remote sync pull failed:', e);
+            setSyncStatus('offline');
+        } finally {
+            remotePullInFlight = false;
+            renderAll();
+        }
+    }
+
     // Called on app load: pull the cloud copy, merge with the local copy
-    // (safe in both directions), then render the combined result.
+    // (safe in both directions), then keep polling so remote changes made on
+    // other devices show up automatically.
     async function initRemoteSync() {
         if (REMOTE_DISABLED) {
             setSyncStatus('file');
             return;
         }
         setSyncStatus('syncing');
-        try {
-            const res = await fetch(API_ENDPOINT);
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const remote = await res.json();
-            const merged = mergeDataStores(loadAllData(), remote);
-            saveAllData(merged);
-            setSyncStatus('synced');
-        } catch (e) {
-            console.warn('Initial remote sync failed:', e);
-            setSyncStatus('offline');
-        }
+        await pullFromServer();
         cleanupExpiredTasks();
         renderAll();
         checkAndNotifyAlerts();
+        setInterval(pullFromServer, 5000);
     }
 
     function getTasksForDate(dateStr) {
@@ -1488,11 +1512,13 @@
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 renderAll();
+                pullFromServer();
             }
         });
 
         window.addEventListener('focus', () => {
             renderAll();
+            pullFromServer();
         });
 
         // Cross-Tab Storage Sync
