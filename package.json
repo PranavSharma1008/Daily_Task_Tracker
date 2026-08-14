@@ -1,0 +1,19 @@
+{
+  "name": "daytask-sync",
+  "version": "2.0.0",
+  "description": "DayTask — cross-device daily task tracker with a zero-dependency Node sync server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "tasks",
+    "todo",
+    "daily",
+    "sync"
+  ],
+  "license": "MIT"
+}

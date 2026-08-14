@@ -708,6 +708,19 @@ body {
     background-color: #DC2626;
     transform: scale(1.03);
 }
+
+.btn-urgent-action.edit {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+}
+
+.btn-urgent-action.edit:hover {
+    background-color: var(--bg-input);
+    border-color: var(--text-muted);
+}
+
+.btn-banner-action {
     background-color: var(--danger);
     color: #FFFFFF;
     border: none;
@@ -1683,6 +1696,19 @@ body {
     margin-top: 0.25rem;
     opacity: 0.8;
 }
+
+/* Sync status indicator */
+.sync-status {
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.sync-status[data-status="synced"] { color: var(--success-text); }
+.sync-status[data-status="syncing"] { color: var(--primary-text); }
+.sync-status[data-status="offline"] { color: var(--warning-text); }
+.sync-status[data-status="loading"] { color: var(--text-muted); }
+.sync-status[data-status="file"] { color: var(--text-muted); }
 
 kbd {
     background-color: var(--bg-card);

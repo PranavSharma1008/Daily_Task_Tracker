@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DayTask — Modern Daily Task Tracker</title>
-    <meta name="description" content="A clean, responsive, day-by-day task management productivity app with local storage persistence and dark mode.">
+    <meta name="description" content="A clean, responsive, day-by-day task management productivity app with cross-device cloud sync, high-alert reminders and dark mode.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,6 +37,9 @@
             </div>
 
             <div class="header-actions">
+                <button id="btn-notifications" class="btn-icon" title="Enable Notifications" aria-label="Enable Alerts">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                </button>
                 <button id="theme-toggle" class="btn-icon" title="Toggle Theme" aria-label="Toggle Dark/Light Mode">
                     <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
                     <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
@@ -283,7 +286,7 @@
         <!-- FOOTER -->
         <footer class="app-footer">
             <p>DayTask &bull; Personal Daily Productivity & Task Tracker</p>
-            <p class="footer-sub">All data is saved locally in your browser. Shortcut: Press <kbd>N</kbd> or <kbd>/</kbd> to quickly add a task.</p>
+            <p class="footer-sub"><span id="sync-status" class="sync-status" data-status="loading">Checking sync…</span> &bull; Press <kbd>N</kbd> or <kbd>/</kbd> to quickly add a task.</p>
         </footer>
     </div>
 
@@ -331,17 +334,17 @@
                         <label for="edit-task-time">Time (Optional)</label>
                         <input type="time" id="edit-task-time">
                     </div>
+                </div>
 
-                    <div class="form-group">
-                        <label for="edit-task-category">Category</label>
-                        <select id="edit-task-category">
-                            <option value="General">General</option>
-                            <option value="Work">Work</option>
-                            <option value="Personal">Personal</option>
-                            <option value="Study">Study</option>
-                            <option value="Health">Health & Fitness</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label for="edit-task-category">Category</label>
+                    <select id="edit-task-category">
+                        <option value="General">General</option>
+                        <option value="Work">Work</option>
+                        <option value="Personal">Personal</option>
+                        <option value="Study">Study</option>
+                        <option value="Health">Health & Fitness</option>
+                    </select>
                 </div>
 
                 <div class="modal-actions">

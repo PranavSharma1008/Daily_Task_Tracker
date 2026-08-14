@@ -7,10 +7,12 @@
     'use strict';
 
     // ==========================================
-    // DATE HELPERS (STRICT HOISTING FIX)
+    // DATE HELPERS (STRICT UTC & TIMEZONE SAFE)
     // ==========================================
     function toISODateString(date) {
-        if (!date || !(date instanceof Date) || isNaN(date)) return new Date().toISOString().split('T')[0];
+        if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+            date = new Date();
+        }
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -18,24 +20,49 @@
     }
 
     function parseISODateString(isoStr) {
-        if (!isoStr || typeof isoStr !== 'string' || !isoStr.includes('-')) {
-            return new Date();
+        if (!isoStr || typeof isoStr !== 'string') {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            return d;
         }
-        const parts = isoStr.split('-');
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        if (isNaN(year) || isNaN(month) || isNaN(day)) {
-            return new Date();
+        const trimmed = isoStr.trim();
+        if (trimmed.includes('-')) {
+            const parts = trimmed.split('-');
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    return new Date(year, month, day, 0, 0, 0, 0);
+                }
+            }
         }
-        return new Date(year, month, day);
+        const fallback = new Date(trimmed);
+        if (!isNaN(fallback.getTime())) {
+            fallback.setHours(0, 0, 0, 0);
+            return fallback;
+        }
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
     }
 
     function isSameDay(d1, d2) {
-        if (!d1 || !d2) return false;
+        if (!d1 || !d2 || !(d1 instanceof Date) || !(d2 instanceof Date) || isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+            return false;
+        }
         return d1.getFullYear() === d2.getFullYear() &&
             d1.getMonth() === d2.getMonth() &&
             d1.getDate() === d2.getDate();
+    }
+
+    function formatTimeDisplay(timeStr) {
+        if (!timeStr) return '';
+        const [hours, minutes] = timeStr.split(':');
+        const h = parseInt(hours, 10);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const formattedHour = h % 12 || 12;
+        return `${formattedHour}:${minutes} ${ampm}`;
     }
 
     // ==========================================
@@ -44,12 +71,21 @@
     const STORAGE_KEY_DATA = 'daytask_data';
     const STORAGE_KEY_THEME = 'daytask_theme';
     const STORAGE_KEY_SELECTED_DATE = 'daytask_selected_date';
+    const STORAGE_KEY_NOTIFIED = 'daytask_notified';
 
-    // Clear any existing PIN lock permanently
+    // Remote sync endpoint — served by server.js on the same origin.
+    // When the app is opened via file:// (no server), sync is disabled
+    // and the app falls back to local-only storage.
+    const API_ENDPOINT = '/api/data';
+    const REMOTE_DISABLED = typeof location !== 'undefined' && location.protocol === 'file:';
+
+    // Clear any legacy PIN locks and stale selected date from permanent localStorage
     localStorage.removeItem('daytask_pin');
+    localStorage.removeItem(STORAGE_KEY_SELECTED_DATE);
 
-    const savedSelectedDate = sessionStorage.getItem(STORAGE_KEY_SELECTED_DATE) || localStorage.getItem(STORAGE_KEY_SELECTED_DATE);
-    let currentDate = savedSelectedDate ? parseISODateString(savedSelectedDate) : new Date(); // The selected date
+    const savedSelectedDate = sessionStorage.getItem(STORAGE_KEY_SELECTED_DATE);
+    let currentDate = savedSelectedDate ? parseISODateString(savedSelectedDate) : new Date(); // Defaults to real-world Today
+    currentDate.setHours(0, 0, 0, 0);
     let activeFilter = 'all'; // 'all' | 'pending' | 'completed'
     let searchQuery = '';
     let draggedTaskId = null;
@@ -124,29 +160,151 @@
         extendCustomDate: document.getElementById('extend-custom-date'),
 
         toastContainer: document.getElementById('toast-container'),
-        confettiCanvas: document.getElementById('confetti-canvas')
+        confettiCanvas: document.getElementById('confetti-canvas'),
+        syncStatus: document.getElementById('sync-status'),
+        btnNotifications: document.getElementById('btn-notifications')
     };
 
     // ==========================================
-    // LOCAL STORAGE MANAGER
+    // DATA STORE (Local cache + Remote sync)
     // ==========================================
+    let dataCache = null;
+    let remotePushTimer = null;
+    let lastAlertCheckAt = 0;
+
+    // Only date keys (YYYY-MM-DD) hold task arrays; "_meta" holds sync metadata.
+    function dataKeys(data) {
+        return Object.keys(data || {}).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
+    }
+
+    function taskTimestamp(task) {
+        if (!task) return '';
+        return task.updatedAt || task.createdAt || '';
+    }
+
+    // Cross-device merge: union all tasks by id, keep the newest version of
+    // each task, and honour the tombstone list of deleted ids on every device.
+    function mergeDataStores(a, b) {
+        const out = {};
+        const allKeys = new Set([...dataKeys(a), ...dataKeys(b)]);
+        const deletedA = (a && a._meta && Array.isArray(a._meta.deleted)) ? a._meta.deleted : [];
+        const deletedB = (b && b._meta && Array.isArray(b._meta.deleted)) ? b._meta.deleted : [];
+        const deleted = new Set([...deletedA, ...deletedB]);
+
+        allKeys.forEach(key => {
+            const listA = Array.isArray(a[key]) ? a[key] : [];
+            const listB = Array.isArray(b[key]) ? b[key] : [];
+            const byId = new Map();
+
+            listA.forEach(t => { if (t && t.id) byId.set(t.id, t); });
+            listB.forEach(t => {
+                if (!t || !t.id) return;
+                const cur = byId.get(t.id);
+                if (!cur || taskTimestamp(t) >= taskTimestamp(cur)) byId.set(t.id, t);
+            });
+
+            const merged = [...byId.values()].filter(t => !deleted.has(t.id));
+            if (merged.length) out[key] = merged;
+        });
+
+        out._meta = { deleted: [...deleted], updatedAt: new Date().toISOString() };
+        return out;
+    }
+
     function loadAllData() {
+        if (dataCache) return dataCache;
         try {
             const json = localStorage.getItem(STORAGE_KEY_DATA);
-            return json ? JSON.parse(json) : {};
+            dataCache = json ? JSON.parse(json) : {};
         } catch (e) {
             console.error('Failed to parse localStorage data:', e);
-            return {};
+            dataCache = {};
         }
+        if (!dataCache._meta) {
+            dataCache._meta = { deleted: [], updatedAt: new Date().toISOString() };
+        }
+        return dataCache;
     }
 
     function saveAllData(data) {
+        dataCache = data;
         try {
             localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(data));
         } catch (e) {
             console.error('Failed to save to localStorage:', e);
             showToast('Failed to save tasks locally', 'error');
         }
+        scheduleRemotePush(data);
+    }
+
+    // ==========================================
+    // REMOTE SYNC ENGINE (server.js)
+    // ==========================================
+    function setSyncStatus(status) {
+        const el = elements.syncStatus;
+        if (!el) return;
+        el.dataset.status = status;
+        if (status === 'synced') {
+            el.textContent = '✓ Cloud synced';
+        } else if (status === 'syncing') {
+            el.textContent = '↻ Syncing…';
+        } else if (status === 'offline') {
+            el.textContent = '⚠ Offline — saved on this device only';
+        } else {
+            el.textContent = 'Local mode (open via server to sync devices)';
+        }
+    }
+
+    function scheduleRemotePush(data) {
+        if (REMOTE_DISABLED) {
+            setSyncStatus('file');
+            return;
+        }
+        clearTimeout(remotePushTimer);
+        remotePushTimer = setTimeout(() => pushToServer(data), 400);
+    }
+
+    async function pushToServer(data) {
+        if (REMOTE_DISABLED) return;
+        setSyncStatus('syncing');
+        try {
+            const res = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const merged = await res.json();
+            dataCache = merged;
+            localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(merged));
+            setSyncStatus('synced');
+        } catch (e) {
+            console.warn('Remote sync failed:', e);
+            setSyncStatus('offline');
+        }
+    }
+
+    // Called on app load: pull the cloud copy, merge with the local copy
+    // (safe in both directions), then render the combined result.
+    async function initRemoteSync() {
+        if (REMOTE_DISABLED) {
+            setSyncStatus('file');
+            return;
+        }
+        setSyncStatus('syncing');
+        try {
+            const res = await fetch(API_ENDPOINT);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const remote = await res.json();
+            const merged = mergeDataStores(loadAllData(), remote);
+            saveAllData(merged);
+            setSyncStatus('synced');
+        } catch (e) {
+            console.warn('Initial remote sync failed:', e);
+            setSyncStatus('offline');
+        }
+        renderAll();
+        checkAndNotifyAlerts();
     }
 
     function getTasksForDate(dateStr) {
@@ -154,7 +312,7 @@
         const pendingForDate = [];
         const completedForDate = [];
 
-        Object.keys(allData).forEach(dateKey => {
+        dataKeys(allData).forEach(dateKey => {
             const tasks = allData[dateKey];
             tasks.forEach(task => {
                 if (!task.completed) {
@@ -244,57 +402,19 @@
     // SECURITY & PASSCODE LOCK SYSTEM
     // ==========================================
     function openBackupModal() {
-        elements.backupModal.classList.remove('hidden');
+        if (elements.backupModal) elements.backupModal.classList.remove('hidden');
     }
 
     function closeBackupModal() {
-        elements.backupModal.classList.add('hidden');
-    }
-
-    // ==========================================
-    // DATE HELPERS
-    // ==========================================
-    function toISODateString(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-
-    function parseISODateString(isoStr) {
-        if (!isoStr || typeof isoStr !== 'string' || !isoStr.includes('-')) {
-            return new Date();
-        }
-        const parts = isoStr.split('-');
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        if (isNaN(year) || isNaN(month) || isNaN(day)) {
-            return new Date();
-        }
-        return new Date(year, month, day);
-    }
-
-    function isSameDay(d1, d2) {
-        return d1.getFullYear() === d2.getFullYear() &&
-            d1.getMonth() === d2.getMonth() &&
-            d1.getDate() === d2.getDate();
-    }
-
-    function formatTimeDisplay(timeStr) {
-        if (!timeStr) return '';
-        const [hours, minutes] = timeStr.split(':');
-        const h = parseInt(hours, 10);
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const formattedHour = h % 12 || 12;
-        return `${formattedHour}:${minutes} ${ampm}`;
+        if (elements.backupModal) elements.backupModal.classList.add('hidden');
     }
 
     // ==========================================
     // DYNAMIC PRIORITY & URGENCY CALCULATOR
     // ==========================================
     function computeUrgencyAndPriority(dueDateStr, priorityMode = 'auto', alertDaysThreshold = 2, referenceDate = null) {
-        const threshold = parseInt(alertDaysThreshold != null ? alertDaysThreshold : 2, 10);
+        const parsedThreshold = parseInt(alertDaysThreshold != null && alertDaysThreshold !== '' ? alertDaysThreshold : 2, 10);
+        const threshold = (!isNaN(parsedThreshold) && parsedThreshold >= 0) ? parsedThreshold : 2;
 
         if (!dueDateStr) {
             const fallbackPriority = (priorityMode === 'auto' || !priorityMode) ? 'medium' : priorityMode;
@@ -308,14 +428,16 @@
             };
         }
 
-        const baseDate = referenceDate ? new Date(referenceDate) : new Date();
+        const baseDate = referenceDate ? (referenceDate instanceof Date ? new Date(referenceDate) : parseISODateString(referenceDate)) : new Date();
         baseDate.setHours(0, 0, 0, 0);
 
         const due = parseISODateString(dueDateStr);
         due.setHours(0, 0, 0, 0);
 
-        const diffTime = due.getTime() - baseDate.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        // Safe calendar days difference using UTC to prevent daylight saving drifts
+        const utcBase = Date.UTC(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+        const utcDue = Date.UTC(due.getFullYear(), due.getMonth(), due.getDate());
+        const diffDays = Math.round((utcDue - utcBase) / (1000 * 60 * 60 * 24));
 
         // Format dates for display
         const dueFormatted = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -329,29 +451,34 @@
         let isUrgent = false;
 
         if (diffDays < 0) {
-            // Overdue relative to viewed date (Past due date -> Normal overdue pill, NO High Alert Red Card)
+            // OVERDUE: End date has crossed/passed!
+            // Strictly excluded from High Alert banner.
             const absDays = Math.abs(diffDays);
             dueLabel = `🚨 OVERDUE! Submission was ${dueFormatted} (${absDays}d overdue)`;
             duePillClass = 'overdue';
-            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'urgent';
+            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'high';
             isUrgent = false;
         } else if (diffDays === 0) {
-            // Due Today relative to viewed date
+            // DUE TODAY: Present Day Alert!
+            // Meets High Alert condition
             dueLabel = `🔴 PRESENT DAY ALERT! Due Today (${dueFormatted})`;
             duePillClass = 'today';
-            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'urgent';
+            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'high';
             isUrgent = true;
         } else if (diffDays <= threshold) {
-            // Within user-configured custom High Alert threshold!
+            // WITHIN HIGH ALERT REMINDER WINDOW (1 to threshold days left)
+            // Meets High Alert condition
             dueLabel = `🔥 HIGH ALERT! Due ${dueFormatted} (${diffDays} day${diffDays > 1 ? 's' : ''} left ≤ ${threshold}d alert)`;
             duePillClass = 'soon';
-            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'urgent';
+            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'high';
             isUrgent = true;
         } else {
-            // Outside alert threshold
-            dueLabel = `📅 Due ${dueFormatted} · Alert on ${alertStartFormatted} (${diffDays} days left)`;
+            // OUTSIDE ALERT WINDOW (More than threshold days left)
+            // Does NOT meet High Alert condition -> Do not show in High Alert
+            dueLabel = `📅 Due ${dueFormatted} · Alert on ${alertStartFormatted} (${diffDays} day${diffDays > 1 ? 's' : ''} left)`;
             duePillClass = 'normal';
             if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'medium';
+            isUrgent = false;
         }
 
         return {
@@ -369,12 +496,21 @@
     function checkUrgentTaskDeadlines() {
         const allData = loadAllData();
         const urgentTasks = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        Object.keys(allData).forEach(dateKey => {
+        dataKeys(allData).forEach(dateKey => {
             const tasks = allData[dateKey];
             tasks.forEach(task => {
                 if (!task.completed && task.dueDate) {
-                    const info = computeUrgencyAndPriority(task.dueDate, task.priority || 'auto', task.alertDays != null ? task.alertDays : 2, currentDate);
+                    const info = computeUrgencyAndPriority(
+                        task.dueDate,
+                        task.priority || 'auto',
+                        task.alertDays != null ? task.alertDays : 2,
+                        today
+                    );
+                    // High alert only shows if task is within active reminder window (0 <= diffDays <= threshold)
+                    // If end date has crossed (diffDays < 0 / overdue) or outside threshold, isUrgent is false
                     if (info.isUrgent) {
                         urgentTasks.push({ ...task, dueInfo: info, taskDateStr: dateKey });
                     }
@@ -399,7 +535,7 @@
                 card.className = `urgent-red-card ${task.dueInfo.duePillClass}`;
                 card.dataset.id = task.id;
 
-                const icon = task.dueInfo.diffDays === 0 ? '🔴' : (task.dueInfo.diffDays < 0 ? '🚨' : '🔥');
+                const icon = task.dueInfo.diffDays === 0 ? '🔴' : '🔥';
 
                 card.innerHTML = `
                     <div class="urgent-red-left">
@@ -410,6 +546,10 @@
                         </div>
                     </div>
                     <div class="urgent-red-actions">
+                        <button class="btn-urgent-action edit" title="Edit Task">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            <span>Edit</span>
+                        </button>
                         <button class="btn-urgent-action complete" title="Mark Done">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             <span>Mark Done</span>
@@ -417,11 +557,21 @@
                     </div>
                 `;
 
+                // Quick Edit Action
+                const editBtn = card.querySelector('.btn-urgent-action.edit');
+                if (editBtn) {
+                    editBtn.addEventListener('click', () => {
+                        openEditModal(task);
+                    });
+                }
+
                 // Quick Complete Action
                 const completeBtn = card.querySelector('.btn-urgent-action.complete');
-                completeBtn.addEventListener('click', () => {
-                    toggleTaskComplete(task.id);
-                });
+                if (completeBtn) {
+                    completeBtn.addEventListener('click', () => {
+                        toggleTaskComplete(task.id);
+                    });
+                }
 
                 elements.urgentCardsContainer.appendChild(card);
             });
@@ -475,19 +625,96 @@
     }
 
     // ==========================================
+    // NATIVE NOTIFICATION ALERTS
+    // ==========================================
+    function requestNotificationPermission() {
+        if (!('Notification' in window)) {
+            showToast('Notifications are not supported in this browser', 'error');
+            return;
+        }
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    showToast('Alerts enabled! You will be notified when tasks reach their alert window.', 'success');
+                } else {
+                    showToast('Notifications blocked. Enable them in your browser settings.', 'error');
+                }
+            });
+        } else if (Notification.permission === 'granted') {
+            showToast('Notifications are already enabled', 'success');
+        } else {
+            showToast('Notifications are blocked. Enable them in your browser settings.', 'error');
+        }
+    }
+
+    function maybeRequestNotificationPermission() {
+        if (!('Notification' in window)) return;
+        if (Notification.permission === 'default') requestNotificationPermission();
+    }
+
+    // Fires once per day per task while a task sits inside its configured
+    // high-alert window (alertDays before the due date) up to and including
+    // the due date itself.
+    function checkAndNotifyAlerts() {
+        if (REMOTE_DISABLED || !('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+        if (document.visibilityState !== 'visible') return;
+
+        const now = Date.now();
+        if (now - lastAlertCheckAt < 60000) return;
+        lastAlertCheckAt = now;
+
+        const todayStr = toISODateString(new Date());
+        let notifiedMap = {};
+        try {
+            notifiedMap = JSON.parse(localStorage.getItem(STORAGE_KEY_NOTIFIED) || '{}');
+        } catch (e) {}
+        if (!notifiedMap || notifiedMap.date !== todayStr) {
+            notifiedMap = { date: todayStr, ids: [] };
+        }
+
+        const allData = loadAllData();
+        dataKeys(allData).forEach(dateKey => {
+            allData[dateKey].forEach(task => {
+                if (task.completed || !task.dueDate) return;
+                const info = computeUrgencyAndPriority(
+                    task.dueDate,
+                    task.priority || 'auto',
+                    task.alertDays != null ? task.alertDays : 2,
+                    new Date()
+                );
+                const inWindow = info.diffDays !== null && info.diffDays >= 0 && info.diffDays <= info.threshold;
+                if (inWindow && !notifiedMap.ids.includes(task.id)) {
+                    try {
+                        new Notification('DayTask High Alert', {
+                            body: task.title + ' — ' + info.dueLabel,
+                            tag: task.id
+                        });
+                        notifiedMap.ids.push(task.id);
+                    } catch (e) {}
+                }
+            });
+        });
+
+        try {
+            localStorage.setItem(STORAGE_KEY_NOTIFIED, JSON.stringify(notifiedMap));
+        } catch (e) {}
+    }
+
+    // ==========================================
     // APP INITIALIZATION & CORE RENDERING
     // ==========================================
     function init() {
         initTheme();
         bindEvents();
         renderAll();
+        initRemoteSync();
     }
 
     function renderAll() {
         const dateStr = toISODateString(currentDate);
         try {
             sessionStorage.setItem(STORAGE_KEY_SELECTED_DATE, dateStr);
-            localStorage.setItem(STORAGE_KEY_SELECTED_DATE, dateStr);
         } catch (e) {}
 
         const tasks = getTasksForDate(dateStr);
@@ -497,6 +724,7 @@
         renderStats(tasks);
         renderTaskLists(tasks);
         checkUrgentTaskDeadlines();
+        checkAndNotifyAlerts();
     }
 
     function renderHeaderDate() {
@@ -668,9 +896,20 @@
         card.dataset.id = task.id;
         card.setAttribute('draggable', 'true');
 
-        const urgencyInfo = computeUrgencyAndPriority(task.dueDate, task.priority || 'auto', task.alertDays != null ? task.alertDays : 2);
+        const urgencyInfo = computeUrgencyAndPriority(
+            task.dueDate,
+            task.priority || 'auto',
+            (task.alertDays !== null && task.alertDays !== undefined && !isNaN(task.alertDays)) ? task.alertDays : 2,
+            new Date()
+        );
         const effectivePriority = urgencyInfo.priority;
         const formattedTime = task.time ? formatTimeDisplay(task.time) : '';
+
+        const categoryDisplayMap = {
+            'Health': 'Health & Fitness',
+            'Health & Fitness': 'Health & Fitness'
+        };
+        const displayCategory = categoryDisplayMap[task.category] || task.category;
 
         card.innerHTML = `
             <div class="task-left">
@@ -701,7 +940,7 @@
                         ${task.category ? `
                             <span class="meta-tag">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
-                                ${escapeHTML(task.category)}
+                                ${escapeHTML(displayCategory)}
                             </span>
                         ` : ''}
                         ${(task.completed && task.createdDate && task.createdDate !== (task.completedDate || toISODateString(currentDate))) ? `
@@ -782,7 +1021,8 @@
             category: category || 'General',
             completed: false,
             createdDate: dateStr,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
 
         allData[dateStr].unshift(newTask);
@@ -807,7 +1047,7 @@
         let found = false;
         const currentActiveDateStr = toISODateString(currentDate);
 
-        Object.keys(allData).forEach(dateKey => {
+        dataKeys(allData).forEach(dateKey => {
             const task = allData[dateKey].find(t => t.id === taskId);
             if (task) {
                 found = true;
@@ -816,10 +1056,12 @@
                 if (task.completed) {
                     task.completedDate = currentActiveDateStr;
                     task.completedAt = new Date().toISOString();
+                    task.updatedAt = new Date().toISOString();
                     showToast(`Task completed! Recorded under ${currentActiveDateStr}`, 'success');
                 } else {
                     delete task.completedDate;
                     delete task.completedAt;
+                    task.updatedAt = new Date().toISOString();
                     showToast('Task re-opened as pending', 'info');
                 }
 
@@ -848,13 +1090,18 @@
             const allData = loadAllData();
             let deleted = false;
 
-            Object.keys(allData).forEach(dateKey => {
+            dataKeys(allData).forEach(dateKey => {
                 const originalLength = allData[dateKey].length;
                 allData[dateKey] = allData[dateKey].filter(t => t.id !== taskId);
                 if (allData[dateKey].length < originalLength) {
                     deleted = true;
                 }
             });
+
+            if (deleted && allData._meta) {
+                if (!Array.isArray(allData._meta.deleted)) allData._meta.deleted = [];
+                if (!allData._meta.deleted.includes(taskId)) allData._meta.deleted.push(taskId);
+            }
 
             if (deleted) {
                 saveAllData(allData);
@@ -865,18 +1112,27 @@
     }
 
     function updateTask(taskId, newTitle, newPriority, newDueDate, newAlertDays, newTime, newCategory) {
+        if (!newTitle || !newTitle.trim()) {
+            showToast('Task description cannot be empty', 'error');
+            return;
+        }
+
         const allData = loadAllData();
         let updated = false;
 
-        Object.keys(allData).forEach(dateKey => {
+        dataKeys(allData).forEach(dateKey => {
             const task = allData[dateKey].find(t => t.id === taskId);
             if (task) {
                 task.title = newTitle.trim();
-                task.priority = newPriority;
-                task.dueDate = newDueDate;
-                task.alertDays = newAlertDays != null ? parseInt(newAlertDays, 10) : 2;
-                task.time = newTime;
-                task.category = newCategory;
+                task.priority = newPriority || 'auto';
+                task.dueDate = newDueDate || '';
+
+                const parsedAlert = parseInt(newAlertDays, 10);
+                task.alertDays = (!isNaN(parsedAlert) && parsedAlert >= 0) ? parsedAlert : 2;
+
+                task.time = newTime || '';
+                task.category = newCategory || 'General';
+                task.updatedAt = new Date().toISOString();
                 updated = true;
             }
         });
@@ -884,7 +1140,7 @@
         if (updated) {
             saveAllData(allData);
             renderAll();
-            showToast('Task updated successfully');
+            showToast('Task updated successfully', 'success');
         }
     }
 
@@ -999,10 +1255,11 @@
         const allData = loadAllData();
         let updated = false;
 
-        Object.keys(allData).forEach(dateKey => {
+        dataKeys(allData).forEach(dateKey => {
             const task = allData[dateKey].find(t => t.id === targetExtendTask.id);
             if (task) {
                 task.dueDate = newDueDate;
+                task.updatedAt = new Date().toISOString();
                 updated = true;
             }
         });
@@ -1017,12 +1274,15 @@
 
     function openEditModal(task) {
         elements.editTaskId.value = task.id;
-        elements.editTaskTitle.value = task.title;
+        elements.editTaskTitle.value = task.title || '';
         elements.editTaskPriority.value = task.priority || 'auto';
         elements.editTaskDueDate.value = task.dueDate || '';
-        elements.editTaskAlertDays.value = task.alertDays != null ? task.alertDays : 2;
+        elements.editTaskAlertDays.value = (task.alertDays !== null && task.alertDays !== undefined && !isNaN(task.alertDays)) ? task.alertDays : 2;
         elements.editTaskTime.value = task.time || '';
-        elements.editTaskCategory.value = task.category || 'General';
+
+        let catValue = task.category || 'General';
+        if (catValue === 'Health & Fitness') catValue = 'Health';
+        elements.editTaskCategory.value = catValue;
 
         elements.editModal.classList.remove('hidden');
         elements.editTaskTitle.focus();
@@ -1085,6 +1345,7 @@
             const category = categoryEl ? categoryEl.value : 'General';
 
             addTask(title, priority, dueDate, alertDays, time, category);
+            maybeRequestNotificationPermission();
 
             titleEl.value = '';
             if (dueDateEl) dueDateEl.value = '';
@@ -1096,15 +1357,10 @@
             formEl.addEventListener('submit', handleAddTaskSubmit);
         }
 
-        // Urgent Banner Action Button
-        elements.btnViewUrgent.addEventListener('click', () => {
-            activeFilter = 'pending';
-            elements.filterTabs.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            const pendingTab = elements.filterTabs.querySelector('[data-filter="pending"]');
-            if (pendingTab) pendingTab.classList.add('active');
-            renderAll();
-            showToast('Filtered pending tasks with urgent deadlines');
-        });
+        // Notifications Button
+        if (elements.btnNotifications) {
+            elements.btnNotifications.addEventListener('click', requestNotificationPermission);
+        }
 
         // Search Input
         elements.taskSearchInput.addEventListener('input', (e) => {

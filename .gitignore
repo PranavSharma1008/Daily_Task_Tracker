@@ -1,0 +1,13 @@
+# Personal task data (do not commit your private tasks)
+data.json
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
