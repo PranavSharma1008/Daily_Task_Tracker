@@ -284,6 +284,49 @@
         }
     }
 
+    // Automatically removes uncompleted tasks whose end date (dueDate) has crossed / passed real-world Today
+    function cleanupExpiredTasks() {
+        const allData = loadAllData();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+
+        let hasRemoved = false;
+        const removedTitles = [];
+
+        dataKeys(allData).forEach(dateKey => {
+            const originalList = allData[dateKey];
+            if (!Array.isArray(originalList)) return;
+
+            const filteredList = originalList.filter(task => {
+                if (task && task.dueDate && !task.completed) {
+                    const due = parseISODateString(task.dueDate);
+                    const dueUtc = Date.UTC(due.getFullYear(), due.getMonth(), due.getDate());
+                    if (dueUtc < todayUtc) {
+                        hasRemoved = true;
+                        if (task.title) removedTitles.push(task.title);
+                        if (allData._meta) {
+                            if (!Array.isArray(allData._meta.deleted)) allData._meta.deleted = [];
+                            if (!allData._meta.deleted.includes(task.id)) allData._meta.deleted.push(task.id);
+                        }
+                        return false; // Automatically remove expired task
+                    }
+                }
+                return true; // Keep task
+            });
+
+            if (filteredList.length !== originalList.length) {
+                allData[dateKey] = filteredList;
+            }
+        });
+
+        if (hasRemoved) {
+            saveAllData(allData);
+        }
+
+        return hasRemoved;
+    }
+
     // Called on app load: pull the cloud copy, merge with the local copy
     // (safe in both directions), then render the combined result.
     async function initRemoteSync() {
@@ -303,6 +346,7 @@
             console.warn('Initial remote sync failed:', e);
             setSyncStatus('offline');
         }
+        cleanupExpiredTasks();
         renderAll();
         checkAndNotifyAlerts();
     }
@@ -459,9 +503,12 @@
             if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'high';
             isUrgent = false;
         } else if (diffDays === 0) {
-            // DUE TODAY: Present Day Alert!
+            // DUE TODAY / DUE ON VIEWED DATE: Present Day Alert!
             // Meets High Alert condition
-            dueLabel = `🔴 PRESENT DAY ALERT! Due Today (${dueFormatted})`;
+            const isRealToday = isSameDay(baseDate, new Date());
+            dueLabel = isRealToday 
+                ? `🔴 PRESENT DAY ALERT! Due Today (${dueFormatted})` 
+                : `🔴 PRESENT DAY ALERT! Due (${dueFormatted})`;
             duePillClass = 'today';
             if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'high';
             isUrgent = true;
@@ -496,8 +543,8 @@
     function checkUrgentTaskDeadlines() {
         const allData = loadAllData();
         const urgentTasks = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const viewDate = new Date(currentDate);
+        viewDate.setHours(0, 0, 0, 0);
 
         dataKeys(allData).forEach(dateKey => {
             const tasks = allData[dateKey];
@@ -507,10 +554,10 @@
                         task.dueDate,
                         task.priority || 'auto',
                         task.alertDays != null ? task.alertDays : 2,
-                        today
+                        viewDate
                     );
-                    // High alert only shows if task is within active reminder window (0 <= diffDays <= threshold)
-                    // If end date has crossed (diffDays < 0 / overdue) or outside threshold, isUrgent is false
+                    // High alert only shows if task is within active reminder window for the viewed date (0 <= diffDays <= threshold)
+                    // If end date has crossed (diffDays < 0) relative to viewDate, or outside threshold, isUrgent is false
                     if (info.isUrgent) {
                         urgentTasks.push({ ...task, dueInfo: info, taskDateStr: dateKey });
                     }
@@ -707,11 +754,13 @@
     function init() {
         initTheme();
         bindEvents();
+        cleanupExpiredTasks();
         renderAll();
         initRemoteSync();
     }
 
     function renderAll() {
+        cleanupExpiredTasks();
         const dateStr = toISODateString(currentDate);
         try {
             sessionStorage.setItem(STORAGE_KEY_SELECTED_DATE, dateStr);
@@ -900,7 +949,7 @@
             task.dueDate,
             task.priority || 'auto',
             (task.alertDays !== null && task.alertDays !== undefined && !isNaN(task.alertDays)) ? task.alertDays : 2,
-            new Date()
+            currentDate
         );
         const effectivePriority = urgencyInfo.priority;
         const formattedTime = task.time ? formatTimeDisplay(task.time) : '';
