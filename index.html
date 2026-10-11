@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DayTask — Modern Daily Task Tracker</title>
+    <meta name="description" content="A clean, responsive, day-by-day task management productivity app with cross-device cloud sync, high-alert reminders and dark mode.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Fast Google Sheets Preconnect -->
+    <link rel="preconnect" href="https://docs.google.com">
+    <link rel="dns-prefetch" href="https://docs.google.com">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Canvas for celebration confetti -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                </div>
+                <div class="brand-text">
+                    <h1>DayTask</h1>
+                    <span class="brand-subtitle">Daily Productivity</span>
+                </div>
+            </div>
+
+            <div class="header-center">
+                <div class="today-badge" id="header-today-display">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                    <span id="current-date-heading">Today</span>
+                </div>
+                <div class="streak-badge" id="header-streak-badge" title="Daily Completion Streak">
+                    <span class="streak-fire">🔥</span>
+                    <span id="streak-counter">0</span>
+                    <span class="streak-unit">streak</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <a href="https://docs.google.com/spreadsheets/d/1qEQaXyeo_lEQwfSCEHsdbSOjnc0j-pBQtQDhk1PjKro/edit?pli=1&gid=0#gid=0"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   id="btn-google-sheet"
+                   class="btn-sheets-link"
+                   title="Open Google Spreadsheet (S)"
+                   aria-label="Open Google Spreadsheet in new tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="8" y1="13" x2="16" y2="13"/>
+                        <line x1="8" y1="17" x2="16" y2="17"/>
+                        <line x1="10" y1="9" x2="8" y2="9"/>
+                    </svg>
+                    <span>Sheets</span>
+                </a>
+                <button id="btn-analytics" class="btn-icon" title="Productivity Analytics (A)" aria-label="Productivity Analytics">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                </button>
+                <button id="btn-sound" class="btn-icon" title="Toggle Sound Effects (M)" aria-label="Toggle Sound Effects">
+                    <svg class="sound-on-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    <svg class="sound-off-icon hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" x2="23" y1="1" y2="23"/><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></svg>
+                </button>
+                <button id="btn-notifications" class="btn-icon" title="Enable Notifications" aria-label="Enable Alerts">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                    <span class="notification-indicator hidden" id="notification-indicator"></span>
+                </button>
+                <button id="btn-backup" class="btn-icon" title="Backup & Restore Data" aria-label="Backup and Restore Data">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                </button>
+                <button id="btn-help" class="btn-icon" title="Keyboard Shortcuts (?)" aria-label="Keyboard Shortcuts">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                </button>
+                <button id="theme-toggle" class="btn-icon" title="Toggle Theme (D)" aria-label="Toggle Dark/Light Mode">
+                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="main-content">
+            
+            <!-- DATE NAVIGATOR & STRIP -->
+            <section class="date-section" aria-label="Date Navigation">
+                <div class="date-nav-bar">
+                    <button id="btn-prev-day" class="btn-nav" title="Previous Day (Arrow Left)" aria-label="Previous Day">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    
+                    <div class="selected-date-info">
+                        <input type="date" id="date-picker-input" class="hidden-date-input" aria-label="Select Date">
+                        <button id="btn-date-display" class="date-selector-btn" title="Click to choose a date">
+                            <span id="display-day-name">Thursday</span>
+                            <span id="display-full-date">August 13, 2026</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <button id="btn-go-today" class="btn-today" title="Jump to Today (T)">Today</button>
+                    </div>
+
+                    <button id="btn-next-day" class="btn-nav" title="Next Day (Arrow Right)" aria-label="Next Day">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                </div>
+
+                <!-- WEEK STRIP NAVIGATOR -->
+                <div class="week-strip" id="week-strip-container" role="region" aria-label="Week Overview">
+                    <!-- Dynamic Days pills rendered here -->
+                </div>
+            </section>
+
+            <!-- DASHBOARD STATS CARD -->
+            <section class="dashboard-card" id="dashboard-card" aria-label="Daily Overview">
+                <div class="dashboard-header">
+                    <div class="dash-title-group">
+                        <h2>Daily Overview</h2>
+                        <p class="dash-subtitle" id="dash-motivation">Keep going! You're making progress.</p>
+                    </div>
+                    <div class="dash-percentage" id="dash-percentage-badge">
+                        0%
+                    </div>
+                </div>
+
+                <!-- PROGRESS BAR -->
+                <div class="progress-container">
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="progress-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-meta">
+                        <span id="progress-text">0 / 0 Tasks Completed</span>
+                        <span id="progress-status-label">0% Complete</span>
+                    </div>
+                </div>
+
+                <!-- METRICS GRID -->
+                <div class="metrics-grid">
+                    <div class="metric-box total">
+                        <div class="metric-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-value" id="count-total">0</span>
+                            <span class="metric-label">Total Tasks</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-box pending">
+                        <div class="metric-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-value" id="count-pending">0</span>
+                            <span class="metric-label">Pending</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-box completed">
+                        <div class="metric-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-value" id="count-completed">0</span>
+                            <span class="metric-label">Completed</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- URGENT DEADLINES REMINDER BANNER -->
+                <div class="urgent-wrapper hidden" id="urgent-deadline-banner" role="alert">
+                    <div class="urgent-wrapper-header">
+                        <h4 class="urgent-title-label" id="banner-title">🚨 High Alert Reminders</h4>
+                    </div>
+                    <div class="urgent-cards-container" id="urgent-cards-container">
+                        <!-- Individual red alert cards generated per urgent task -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ADD TASK FORM -->
+            <section class="add-task-card" aria-label="Add Task">
+                <form id="add-task-form" autocomplete="off">
+                    <div class="form-main-row">
+                        <div class="input-wrapper">
+                            <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
+                            <input type="text" id="task-title-input" placeholder="What do you need to do today? (Press N or / to focus)" required autofocus aria-label="Task Description">
+                        </div>
+                        <button type="submit" class="btn-primary" id="btn-add-task">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                            <span>Add Task</span>
+                        </button>
+                    </div>
+
+                    <div class="form-options-row">
+                        <!-- Priority Picker with Auto Escalation -->
+                        <div class="option-group">
+                            <label for="task-priority-select">Priority Mode</label>
+                            <div class="select-wrapper">
+                                <select id="task-priority-select">
+                                    <option value="auto" selected>⚡ Auto-Escalate by End Date</option>
+                                    <option value="high">High Priority</option>
+                                    <option value="medium">Medium Priority</option>
+                                    <option value="low">Low Priority</option>
+                                </select>
+                                <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            </div>
+                        </div>
+
+                        <!-- End Date / Due Date Input -->
+                        <div class="option-group">
+                            <label for="task-duedate-input">End Date (Due Date)</label>
+                            <div class="input-wrapper-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                                <input type="date" id="task-duedate-input">
+                            </div>
+                            <div class="quick-preset-chips">
+                                <button type="button" class="btn-preset-chip" data-preset="today">Today</button>
+                                <button type="button" class="btn-preset-chip" data-preset="tomorrow">Tmrw</button>
+                                <button type="button" class="btn-preset-chip" data-preset="+3d">+3d</button>
+                                <button type="button" class="btn-preset-chip" data-preset="+7d">+1w</button>
+                            </div>
+                        </div>
+
+                        <!-- High Alert Threshold (Manual Day Entry) -->
+                        <div class="option-group">
+                            <label for="task-alertdays-input">High Alert Reminder</label>
+                            <div class="input-wrapper-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                                <input type="number" id="task-alertdays-input" min="0" max="365" value="2" placeholder="e.g. 2" style="width: 55px; border: none; background: transparent; font-family: inherit; font-size: 0.88rem; font-weight: 800; color: var(--text-main); outline: none;">
+                                <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">Days Before</span>
+                            </div>
+                        </div>
+
+                        <!-- Time Input -->
+                        <div class="option-group">
+                            <label for="task-time-input">Time (Optional)</label>
+                            <div class="input-wrapper-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                <input type="time" id="task-time-input">
+                            </div>
+                        </div>
+
+                        <!-- Category Selector -->
+                        <div class="option-group">
+                            <label for="task-category-select">Category</label>
+                            <div class="select-wrapper">
+                                <select id="task-category-select">
+                                    <option value="General">General</option>
+                                    <option value="Work">Work</option>
+                                    <option value="Personal">Personal</option>
+                                    <option value="Study">Study</option>
+                                    <option value="Health">Health & Fitness</option>
+                                </select>
+                                <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Notes & Checklist Builder -->
+                    <div class="form-extra-toggle-row">
+                        <button type="button" class="btn-toggle-extra" id="btn-toggle-add-extra">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                            <span id="extra-toggle-label">Add Notes & Subtasks</span>
+                        </button>
+                    </div>
+
+                    <div class="add-extra-container hidden" id="add-extra-container">
+                        <div class="form-group extra-field">
+                            <label for="task-notes-input">Notes / Details</label>
+                            <textarea id="task-notes-input" placeholder="Add additional details, links, or notes for this task..." rows="2"></textarea>
+                        </div>
+
+                        <div class="form-group extra-field">
+                            <label for="task-subtask-draft-input">Subtasks Checklist</label>
+                            <div class="subtask-builder-row">
+                                <input type="text" id="task-subtask-draft-input" placeholder="Type a subtask and press Enter (or click Add)...">
+                                <button type="button" class="btn-secondary btn-sm" id="btn-add-draft-subtask">+ Add Subtask</button>
+                            </div>
+                            <div class="subtask-draft-chips" id="subtask-draft-chips"></div>
+                        </div>
+
+                        <div class="form-group extra-field pin-field">
+                            <label class="pin-toggle-label" for="task-pin-input">
+                                <input type="checkbox" id="task-pin-input">
+                                <span>📌 Pin to top of list</span>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- SEARCH, FILTER & SORT TOOLBAR -->
+            <section class="toolbar-section">
+                <div class="toolbar-primary-row">
+                    <div class="search-bar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="text" id="task-search-input" placeholder="Search tasks, notes, or subtasks..." aria-label="Search tasks">
+                        <button id="btn-clear-search" class="btn-clear-search hidden" title="Clear search" aria-label="Clear search">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="filter-tabs" id="filter-tabs" role="tablist">
+                        <button class="filter-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
+                        <button class="filter-btn" data-filter="pending" role="tab" aria-selected="false">Pending</button>
+                        <button class="filter-btn" data-filter="completed" role="tab" aria-selected="false">Completed</button>
+                    </div>
+                </div>
+
+                <div class="toolbar-secondary-row">
+                    <div class="toolbar-control-group">
+                        <span class="control-label">Sort:</span>
+                        <div class="select-wrapper select-wrapper-sm">
+                            <select id="task-sort-select" aria-label="Sort tasks">
+                                <option value="custom" selected>Default Order</option>
+                                <option value="dueDate">Due Date (Earliest)</option>
+                                <option value="priority">Priority (Highest)</option>
+                                <option value="time">Time</option>
+                                <option value="title">Title (A-Z)</option>
+                            </select>
+                            <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="toolbar-control-group">
+                        <span class="control-label">Category:</span>
+                        <div class="select-wrapper select-wrapper-sm">
+                            <select id="category-filter-select" aria-label="Filter by category">
+                                <option value="all" selected>All Categories</option>
+                                <option value="General">General</option>
+                                <option value="Work">Work</option>
+                                <option value="Personal">Personal</option>
+                                <option value="Study">Study</option>
+                                <option value="Health">Health & Fitness</option>
+                            </select>
+                            <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="bulk-dropdown-container">
+                        <button type="button" class="btn-secondary btn-sm" id="btn-bulk-menu" aria-expanded="false" aria-haspopup="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                            <span>Batch Actions</span>
+                        </button>
+                        <div class="bulk-menu-dropdown hidden" id="bulk-menu-dropdown">
+                            <button type="button" class="bulk-menu-item" id="btn-batch-complete-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                <span>Mark All Completed</span>
+                            </button>
+                            <button type="button" class="bulk-menu-item" id="btn-batch-move-tomorrow">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                <span>Move Pending to Tomorrow</span>
+                            </button>
+                            <button type="button" class="bulk-menu-item danger" id="btn-batch-clear-completed">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                <span>Clear Completed for Day</span>
+                            </button>
+                            <div class="bulk-menu-divider"></div>
+                            <button type="button" class="bulk-menu-item" id="btn-copy-markdown-summary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                                <span>Copy Markdown Summary</span>
+                            </button>
+                            <a href="https://docs.google.com/spreadsheets/d/1qEQaXyeo_lEQwfSCEHsdbSOjnc0j-pBQtQDhk1PjKro/edit?pli=1&gid=0#gid=0"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="bulk-menu-item"
+                               style="text-decoration: none;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+                                <span>Open Google Spreadsheet</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TASKS CONTAINER -->
+            <div class="tasks-layout">
+                <!-- Search Empty State -->
+                <div class="empty-state hidden" id="search-empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <h4>No Matching Tasks</h4>
+                    <p id="search-empty-message">No tasks matched your search query.</p>
+                    <button type="button" class="btn-secondary" id="btn-reset-search" style="margin-top: 0.5rem;">Clear Search</button>
+                </div>
+
+                <!-- PENDING TASKS SECTION -->
+                <section class="task-group-section" id="pending-group">
+                    <div class="section-title-bar">
+                        <h3>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Pending Tasks
+                        </h3>
+                        <span class="badge" id="pending-count-badge">0</span>
+                    </div>
+
+                    <div class="task-list" id="pending-task-list">
+                        <!-- Pending Tasks appended here -->
+                    </div>
+
+                    <!-- Empty State for Pending -->
+                    <div class="empty-state hidden" id="pending-empty-state">
+                        <div class="empty-icon">✨</div>
+                        <h4>No Pending Tasks</h4>
+                        <p>You have accomplished everything for today, or haven't added tasks yet!</p>
+                    </div>
+                </section>
+
+                <!-- COMPLETED TASKS SECTION -->
+                <section class="task-group-section" id="completed-group">
+                    <div class="section-title-bar">
+                        <h3>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Completed Tasks
+                        </h3>
+                        <span class="badge success-badge" id="completed-count-badge">0</span>
+                    </div>
+
+                    <div class="task-list" id="completed-task-list">
+                        <!-- Completed Tasks appended here -->
+                    </div>
+
+                    <!-- Empty State for Completed -->
+                    <div class="empty-state hidden" id="completed-empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <h4>No Completed Tasks Yet</h4>
+                        <p>Check off tasks as you finish them to see your accomplishments here.</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <p>DayTask &bull; Personal Daily Productivity & Task Tracker</p>
+            <p class="footer-sub"><span id="sync-status" class="sync-status" data-status="loading">Checking sync…</span> &bull; <kbd>N</kbd> or <kbd>/</kbd> to add task &bull; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> to switch days &bull; <kbd>T</kbd> for Today</p>
+        </footer>
+    </div>
+
+    <!-- EDIT TASK MODAL -->
+    <div class="modal-overlay hidden" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="edit-modal-title">Edit Task</h3>
+                <button class="btn-icon" id="btn-close-edit-modal" title="Close" aria-label="Close dialog">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <form id="edit-task-form">
+                <input type="hidden" id="edit-task-id">
+                
+                <div class="form-group">
+                    <label for="edit-task-title">Task Description</label>
+                    <input type="text" id="edit-task-title" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-task-priority">Priority Mode</label>
+                        <select id="edit-task-priority">
+                            <option value="auto">⚡ Auto-Escalate by End Date</option>
+                            <option value="high">High Priority</option>
+                            <option value="medium">Medium Priority</option>
+                            <option value="low">Low Priority</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-task-duedate">End Date (Due Date)</label>
+                        <input type="date" id="edit-task-duedate">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-task-alertdays">High Alert Reminder (Days Before)</label>
+                        <input type="number" id="edit-task-alertdays" min="0" max="365" placeholder="Enter days (e.g. 1, 2, 3, 4)" value="2">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-task-time">Time (Optional)</label>
+                        <input type="time" id="edit-task-time">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-task-category">Category</label>
+                    <select id="edit-task-category">
+                        <option value="General">General</option>
+                        <option value="Work">Work</option>
+                        <option value="Personal">Personal</option>
+                        <option value="Study">Study</option>
+                        <option value="Health">Health & Fitness</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-task-notes">Notes / Details</label>
+                    <textarea id="edit-task-notes" placeholder="Notes, reference links, or extra details..." rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Subtasks / Checklist</label>
+                    <div class="subtask-edit-list" id="edit-subtasks-list">
+                        <!-- Subtasks rendered dynamically -->
+                    </div>
+                    <div class="subtask-builder-row">
+                        <input type="text" id="edit-new-subtask-input" placeholder="Add a subtask item...">
+                        <button type="button" class="btn-secondary btn-sm" id="btn-add-edit-subtask">+ Add</button>
+                    </div>
+                </div>
+
+                <div class="form-group pin-field">
+                    <label class="pin-toggle-label" for="edit-task-pin">
+                        <input type="checkbox" id="edit-task-pin">
+                        <span>📌 Pin to top of list</span>
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-edit">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EXTEND DATE QUICK MODAL -->
+    <div class="modal-overlay hidden" id="extend-modal" role="dialog" aria-modal="true" aria-labelledby="extend-modal-title">
+        <div class="modal-card extend-modal-card">
+            <div class="modal-header">
+                <h3 id="extend-modal-title">📅 Extend Task Deadline</h3>
+                <button class="btn-icon" id="btn-close-extend-modal" title="Close" aria-label="Close dialog">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="extend-body">
+                <p class="extend-task-title" id="extend-task-title-display">Task Title</p>
+                <p class="extend-current-date" id="extend-current-date-display">Current End Date: Not set</p>
+                
+                <div class="extend-presets">
+                    <button type="button" class="btn-extend-preset" data-days="1">+1 Day</button>
+                    <button type="button" class="btn-extend-preset" data-days="2">+2 Days</button>
+                    <button type="button" class="btn-extend-preset" data-days="3">+3 Days</button>
+                    <button type="button" class="btn-extend-preset" data-days="7">+1 Week</button>
+                </div>
+
+                <div class="form-group custom-extend-group">
+                    <label for="extend-custom-date">Or Pick Custom End Date</label>
+                    <input type="date" id="extend-custom-date">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-extend">Cancel</button>
+                    <button type="button" class="btn-primary" id="btn-save-extend">Apply New Date</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BACKUP & RESTORE MODAL -->
+    <div class="modal-overlay hidden" id="backup-modal" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="backup-modal-title">💾 Backup, Export & Restore</h3>
+                <button class="btn-icon" id="btn-close-backup-modal" title="Close" aria-label="Close dialog">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="backup-body">
+                <p class="backup-desc">Export your tasks as JSON or CSV, or restore previously saved tasks across all your devices.</p>
+                <div class="backup-actions-grid">
+                    <div class="backup-action-card">
+                        <div class="backup-action-info">
+                            <strong>Export JSON Backup</strong>
+                            <span>Download all tasks and settings as a full JSON file</span>
+                        </div>
+                        <button type="button" class="btn-primary" id="btn-export-backup">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                            <span>Export JSON</span>
+                        </button>
+                    </div>
+                    <div class="backup-action-card">
+                        <div class="backup-action-info">
+                            <strong>Export Spreadsheet (CSV)</strong>
+                            <span>Export all tasks as a spreadsheet CSV file</span>
+                        </div>
+                        <button type="button" class="btn-secondary" id="btn-export-csv">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" x2="16" y1="13" y2="13"/><line x1="8" x2="16" y1="17" y2="17"/></svg>
+                            <span>Export CSV</span>
+                        </button>
+                    </div>
+                    <div class="backup-action-card">
+                        <div class="backup-action-info">
+                            <strong>Google Spreadsheet</strong>
+                            <span>Open your live connected Google Sheet in a new tab</span>
+                        </div>
+                        <a href="https://docs.google.com/spreadsheets/d/1qEQaXyeo_lEQwfSCEHsdbSOjnc0j-pBQtQDhk1PjKro/edit?pli=1&gid=0#gid=0"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="btn-secondary"
+                           style="text-decoration:none; display:inline-flex; align-items:center; gap:0.5rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            <span>Open Sheet</span>
+                        </a>
+                    </div>
+                    <div class="backup-action-card">
+                        <div class="backup-action-info">
+                            <strong>SMTP Email Alerts</strong>
+                            <span>Alerts to <code>shpranav00009@gmail.com</code> (high alerts & 4 daily sheet checks)</span>
+                        </div>
+                        <button type="button" class="btn-secondary" id="btn-send-test-email">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                            <span>Test Email</span>
+                        </button>
+                    </div>
+                    <div class="backup-action-card">
+                        <div class="backup-action-info">
+                            <strong>Restore Backup</strong>
+                            <span>Import and merge tasks from a DayTask backup JSON</span>
+                        </div>
+                        <label for="backup-file-input" class="btn-secondary file-upload-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                            <span>Import JSON</span>
+                        </label>
+                        <input type="file" id="backup-file-input" accept=".json,application/json" class="hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRODUCTIVITY ANALYTICS MODAL -->
+    <div class="modal-overlay hidden" id="analytics-modal" role="dialog" aria-modal="true" aria-labelledby="analytics-modal-title">
+        <div class="modal-card analytics-modal-card">
+            <div class="modal-header">
+                <div class="analytics-title-group">
+                    <h3 id="analytics-modal-title">📊 Productivity Analytics</h3>
+                    <span class="analytics-subtitle">Track your streaks, completion rates, and habits</span>
+                </div>
+                <button class="btn-icon" id="btn-close-analytics-modal" title="Close" aria-label="Close dialog">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="analytics-body">
+                <!-- Analytics Top Tiles -->
+                <div class="analytics-tiles-grid">
+                    <div class="analytics-tile">
+                        <span class="tile-icon">🔥</span>
+                        <div class="tile-content">
+                            <span class="tile-value" id="stats-current-streak">0</span>
+                            <span class="tile-label">Current Streak (Days)</span>
+                        </div>
+                    </div>
+                    <div class="analytics-tile">
+                        <span class="tile-icon">🏆</span>
+                        <div class="tile-content">
+                            <span class="tile-value" id="stats-best-streak">0</span>
+                            <span class="tile-label">Best Streak (Days)</span>
+                        </div>
+                    </div>
+                    <div class="analytics-tile">
+                        <span class="tile-icon">⚡</span>
+                        <div class="tile-content">
+                            <span class="tile-value" id="stats-completion-rate">0%</span>
+                            <span class="tile-label">Completion Rate</span>
+                        </div>
+                    </div>
+                    <div class="analytics-tile">
+                        <span class="tile-icon">✅</span>
+                        <div class="tile-content">
+                            <span class="tile-value" id="stats-lifetime-completed">0</span>
+                            <span class="tile-label">All-time Completed</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7-Day Completion Velocity Chart -->
+                <div class="analytics-section">
+                    <h4 class="analytics-section-title">Past 7 Days Activity</h4>
+                    <div class="chart-container" id="analytics-chart-container">
+                        <!-- SVG Bar Chart rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Category Breakdown -->
+                <div class="analytics-section">
+                    <h4 class="analytics-section-title">Tasks by Category</h4>
+                    <div class="category-breakdown-list" id="analytics-category-container">
+                        <!-- Category progress bars rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KEYBOARD SHORTCUTS MODAL -->
+    <div class="modal-overlay hidden" id="shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-modal-title">
+        <div class="modal-card shortcuts-modal-card">
+            <div class="modal-header">
+                <h3 id="shortcuts-modal-title">⌨️ Keyboard Shortcuts</h3>
+                <button class="btn-icon" id="btn-close-shortcuts-modal" title="Close" aria-label="Close dialog">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="shortcuts-body">
+                <div class="shortcuts-grid">
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>N</kbd> or <kbd>/</kbd></div>
+                        <span class="shortcut-desc">Focus "Add Task" input</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>&larr;</kbd></div>
+                        <span class="shortcut-desc">Go to Previous Day</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>&rarr;</kbd></div>
+                        <span class="shortcut-desc">Go to Next Day</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>T</kbd></div>
+                        <span class="shortcut-desc">Jump to Today</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>A</kbd></div>
+                        <span class="shortcut-desc">Open Productivity Analytics</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>S</kbd></div>
+                        <span class="shortcut-desc">Open Google Spreadsheet</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>M</kbd></div>
+                        <span class="shortcut-desc">Toggle Sound Effects</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>D</kbd></div>
+                        <span class="shortcut-desc">Toggle Dark / Light Theme</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>?</kbd></div>
+                        <span class="shortcut-desc">Open Keyboard Shortcuts</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>Esc</kbd></div>
+                        <span class="shortcut-desc">Close any open dialog</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
+
+    <!-- JS Application Script -->
+    <script src="js/app.js"></script>
+</body>
+</html>
