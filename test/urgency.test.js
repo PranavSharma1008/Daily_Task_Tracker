@@ -95,3 +95,37 @@ test('Urgency Calculator — Threshold parsing edge cases', () => {
     const resNeg = computeUrgencyAndPriority('2026-08-16', 'auto', -5, baseDate);
     assert.strictEqual(resNeg.threshold, 2);
 });
+
+test('Urgency Calculator — Extending date from Today to +3 days transitions priority from urgent to medium', () => {
+    const baseDate = new Date(2026, 7, 15);
+    // Task originally due today
+    const todayRes = computeUrgencyAndPriority('2026-08-15', 'auto', 2, baseDate);
+    assert.strictEqual(todayRes.priority, 'urgent');
+    assert.strictEqual(todayRes.isUrgent, true);
+
+    // User extends deadline by 3 days (to 2026-08-18)
+    const extendedRes = computeUrgencyAndPriority('2026-08-18', 'auto', 2, baseDate);
+    assert.strictEqual(extendedRes.priority, 'medium', 'Priority must change from urgent to medium when extended past alert threshold');
+    assert.strictEqual(extendedRes.isUrgent, false, 'Alert must turn off when extended past alert threshold');
+    assert.strictEqual(extendedRes.diffDays, 3);
+});
+
+test('Urgency Calculator — renderPriorityPreview generates accurate DOM class and textual feedback', () => {
+    const { renderPriorityPreview } = require('../js/app.js');
+    const mockEl = { style: {}, className: '', innerHTML: '' };
+    const baseDate = new Date(2026, 7, 15);
+
+    // Test Due Today
+    renderPriorityPreview('2026-08-15', 'auto', 2, mockEl, baseDate);
+    assert.strictEqual(mockEl.className, 'priority-live-preview urgent');
+    assert.match(mockEl.innerHTML, /Due Today/);
+
+    // Test Extended (+4 days)
+    renderPriorityPreview('2026-08-19', 'auto', 2, mockEl, baseDate);
+    assert.strictEqual(mockEl.className, 'priority-live-preview medium');
+    assert.match(mockEl.innerHTML, /MEDIUM Priority/);
+
+    // Test No date
+    renderPriorityPreview('', 'auto', 2, mockEl, baseDate);
+    assert.strictEqual(mockEl.style.display, 'none');
+});

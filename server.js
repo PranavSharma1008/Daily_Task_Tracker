@@ -150,7 +150,7 @@ function serveStatic(res, pathname, publicDir = DEFAULT_PUBLIC_DIR) {
             const ext = path.extname(resolvedPath).toLowerCase();
             const headers = {
                 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
-                'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600'
+                'Cache-Control': 'no-cache, must-revalidate'
             };
             res.writeHead(200, headers);
             fs.createReadStream(resolvedPath).pipe(res);
@@ -272,13 +272,27 @@ function createServer({ dataFile = (process.env.DATA_FILE_PATH || DEFAULT_DATA_F
             if (req.method === 'POST') {
                 readJsonBody(req, res, async (body) => {
                     try {
-                        const subject = 'Remainder Alert: Test Notification from DayTask';
-                        const html = emailService.renderSpreadsheetReminderHtml('Manual Test');
+                        const isTask = body && body.taskTitle;
+                        const subject = isTask
+                            ? `Remainder Alert: ${body.taskTitle}`
+                            : 'Remainder Alert: DayTask Test Notification';
+                        const html = isTask
+                            ? emailService.renderTaskAlertHtml({
+                                id: body.taskId || 'manual_test',
+                                title: body.taskTitle,
+                                priority: 'urgent',
+                                dueDate: new Date().toISOString().split('T')[0],
+                                notes: body.notes || ''
+                            }, 'URGENT TASK ALERT!', 0)
+                            : emailService.renderSpreadsheetReminderHtml('Manual Test');
+
                         await emailService.sendSmtpMail({ subject, html });
                         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                         res.end(JSON.stringify({
                             success: true,
-                            message: `Test email successfully delivered to ${emailService.CONFIG.notifyEmail}`
+                            subject,
+                            recipient: emailService.CONFIG.notifyEmail,
+                            message: `Alert successfully delivered to ${emailService.CONFIG.notifyEmail} via Google SMTP`
                         }));
                     } catch (err) {
                         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });

@@ -66,7 +66,7 @@ A modern, fast, and fully responsive **Daily Task Tracker** built with pure **HT
 - **Data Export & Summary**: Copy GitHub-style Markdown summaries to clipboard and export full task histories in RFC 4180 CSV format.
 ### 11. 📧 Native SMTP Background Email Alerts & Scheduled Reminders
 - **Always Active in Background**: Runs on `server.js` — alerts and reminders trigger **even when the website is closed or offline in your browser**.
-- **High Alert Reminders**: When any task reaches its High Alert threshold (or is overdue/due today), an email is dispatched directly to `shpranav00009@gmail.com` with subject `Remainder Alert: <Task Title>`.
+- **High Alert Reminders**: When any task reaches its High Alert threshold (or is overdue/due today), an email is dispatched directly to `shpranav1008@gmail.com` with subject `Remainder Alert: <Task Title>`.
 - **Scheduled Google Spreadsheet Check-ins**: 4 automated reminder checkpoints daily at **11:00 AM**, **12:00 PM**, **4:00 PM**, and **8:00 PM** with one-click direct access to your live Google Sheet.
 - **Smart Anti-Spam Deduplication**: Ledger records sent notifications so you receive exactly one alert per task per day and one sheet checkpoint per scheduled time window.
 - **Zero External Dependencies**: Implemented natively via Node.js `node:tls` socket protocol connecting directly to `smtp.gmail.com:465`.

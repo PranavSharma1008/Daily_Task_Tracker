@@ -13,7 +13,7 @@ const CONFIG = {
     smtpPort: parseInt(process.env.SMTP_PORT, 10) || 465,
     smtpUser: process.env.SMTP_USER || 'pranav2410991479@gmail.com',
     smtpPass: process.env.SMTP_PASS || 'ibduwgvxuwnmxmyh',
-    notifyEmail: process.env.NOTIFY_EMAIL || 'shpranav00009@gmail.com',
+    notifyEmail: process.env.NOTIFY_EMAIL || 'shpranav1008@gmail.com',
     senderName: 'DayTask Reminder Engine',
     spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1qEQaXyeo_lEQwfSCEHsdbSOjnc0j-pBQtQDhk1PjKro/edit?pli=1&gid=0#gid=0',
     appUrl: process.env.APP_URL || 'http://localhost:3000',
@@ -88,13 +88,21 @@ function sendSmtpMail({ from = CONFIG.smtpUser, to = CONFIG.notifyEmail, subject
                 step = 7;
                 const plainText = text || html.replace(/<[^>]+>/g, ' ');
                 const boundary = '----=_Part_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+                const messageId = `<daytask-${Date.now()}-${Math.random().toString(36).slice(2)}@gmail.com>`;
                 
+                const formattedSubject = /^[\x20-\x7E]*$/.test(subject)
+                    ? subject
+                    : `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
+
                 const messageLines = [
-                    `From: ${CONFIG.senderName} <${from}>`,
+                    `From: "${CONFIG.senderName}" <${from}>`,
                     `To: <${to}>`,
-                    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+                    `Reply-To: <${from}>`,
+                    `Message-ID: ${messageId}`,
+                    `Subject: ${formattedSubject}`,
                     `Date: ${new Date().toUTCString()}`,
                     `MIME-Version: 1.0`,
+                    `X-Mailer: DayTask Task Tracker 2.0`,
                     `Content-Type: multipart/alternative; boundary="${boundary}"`,
                     ``,
                     `--${boundary}`,
@@ -119,6 +127,7 @@ function sendSmtpMail({ from = CONFIG.smtpUser, to = CONFIG.notifyEmail, subject
                 step = 8;
                 clearTimeout(timeout);
                 socket.write(`QUIT\r\n`);
+                console.log(`[EmailService] Successfully delivered to ${to} (Subject: "${subject}")`);
                 resolve({ success: true, message: 'Email sent successfully to ' + to });
             }
             // 5xx Error handling

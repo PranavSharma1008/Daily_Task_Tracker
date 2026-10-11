@@ -171,6 +171,43 @@
         };
     }
 
+    function renderPriorityPreview(dueDate, priorityMode, alertDays, previewEl, referenceDate = new Date()) {
+        if (!previewEl) return;
+        if (!dueDate) {
+            previewEl.style.display = 'none';
+            previewEl.innerHTML = '';
+            return;
+        }
+        const info = computeUrgencyAndPriority(dueDate, priorityMode || 'auto', alertDays, referenceDate);
+        previewEl.style.display = 'inline-flex';
+        previewEl.className = `priority-live-preview ${info.priority}`;
+
+        let icon = '📅';
+        let text = '';
+        if (info.isOverdue) {
+            icon = '🚨';
+            text = `OVERDUE (${Math.abs(info.diffDays)}d) → URGENT Alert`;
+        } else if (info.diffDays === 0) {
+            icon = '🔴';
+            text = `Due Today → URGENT Present Day Alert`;
+        } else if (info.diffDays <= info.threshold) {
+            icon = '🔥';
+            text = `Due in ${info.diffDays}d (≤ ${info.threshold}d Alert) → HIGH Alert`;
+        } else {
+            icon = '📅';
+            const daysToAlert = info.diffDays - info.threshold;
+            const alertNote = daysToAlert > 0 ? `Alert in ${daysToAlert}d` : 'No alert';
+            const dynamicLabel = (priorityMode === 'auto' || !priorityMode) ? 'MEDIUM' : priorityMode.toUpperCase();
+            text = `Due in ${info.diffDays}d (${alertNote}) → ${dynamicLabel} Priority`;
+        }
+
+        if (priorityMode && priorityMode !== 'auto') {
+            text += ` [Manual: ${priorityMode.toUpperCase()}]`;
+        }
+
+        previewEl.innerHTML = `<span>${icon}</span> <span>${escapeHTML(text)}</span>`;
+    }
+
     // ==========================================
     // DATA STORE & CONFLICT-FREE SYNC MERGE
     // ==========================================
@@ -284,9 +321,16 @@
             }
 
             if (sortBy === 'priority') {
-                const rank = { urgent: 4, high: 3, medium: 2, low: 1, auto: 2.5 };
-                const rankA = rank[a.priority] || 2;
-                const rankB = rank[b.priority] || 2;
+                const rank = { urgent: 4, high: 3, auto: 2.5, medium: 2, low: 1 };
+                const getRank = (t) => {
+                    if (t.priority === 'auto' && t.dueDate) {
+                        const eff = computeUrgencyAndPriority(t.dueDate, 'auto', t.alertDays, new Date()).priority;
+                        return rank[eff] || 2.5;
+                    }
+                    return rank[t.priority] || 2;
+                };
+                const rankA = getRank(a);
+                const rankB = getRank(b);
                 if (rankB !== rankA) return rankB - rankA;
                 return 0;
             }
@@ -693,7 +737,8 @@
             batchMovePending,
             batchClearCompleted,
             createUndoAction,
-            applyUndoAction
+            applyUndoAction,
+            renderPriorityPreview
         };
     }
 
@@ -826,6 +871,8 @@
         editTaskPin: document.getElementById('edit-task-pin'),
         btnCloseEditModal: document.getElementById('btn-close-edit-modal'),
         btnCancelEdit: document.getElementById('btn-cancel-edit'),
+        editQuickPresetChips: document.getElementById('edit-quick-preset-chips'),
+        editPriorityPreview: document.getElementById('edit-priority-preview'),
 
         // Extend Modal
         extendModal: document.getElementById('extend-modal'),
@@ -835,14 +882,18 @@
         extendTaskTitleDisplay: document.getElementById('extend-task-title-display'),
         extendCurrentDateDisplay: document.getElementById('extend-current-date-display'),
         extendCustomDate: document.getElementById('extend-custom-date'),
+        extendPriorityPreview: document.getElementById('extend-priority-preview'),
 
-        // Backup Modal
+        // Add Form Live Previews
+        addPriorityPreview: document.getElementById('add-priority-preview'),
+        addQuickPresetChips: document.getElementById('add-quick-preset-chips'),
+
+        // Backup Controls
         btnBackup: document.getElementById('btn-backup'),
         backupModal: document.getElementById('backup-modal'),
         btnCloseBackupModal: document.getElementById('btn-close-backup-modal'),
         btnExportBackup: document.getElementById('btn-export-backup'),
         btnExportCsv: document.getElementById('btn-export-csv'),
-        btnSendTestEmail: document.getElementById('btn-send-test-email'),
         backupFileInput: document.getElementById('backup-file-input'),
 
         // Analytics Modal
@@ -2119,33 +2170,44 @@
                 task.isPinned = Boolean(newIsPinned);
                 task.updatedAt = new Date().toISOString();
                 updated = true;
+                updatedTask = task;
             }
         });
 
         if (updated) {
             saveAllData(allData);
             renderAll();
-            showToast('Task updated successfully', 'success');
+            const eff = updatedTask && updatedTask.dueDate ? computeUrgencyAndPriority(updatedTask.dueDate, updatedTask.priority, updatedTask.alertDays, new Date()) : null;
+            const prioMsg = eff ? ` · ${eff.priority.toUpperCase()} Priority` : '';
+            showToast(`Task updated successfully${prioMsg}`, 'success');
         }
     }
 
     function updateTaskDueDate(taskId, newDueDate) {
         const allData = loadAllData();
         let updated = false;
+        let updatedTask = null;
 
         dataKeys(allData).forEach(dateKey => {
             const task = allData[dateKey].find(t => t.id === taskId);
             if (task) {
                 task.dueDate = newDueDate;
+                // If priority was previously urgent or auto, ensure priority is auto so it recalculates dynamically!
+                if (!task.priority || task.priority === 'urgent' || task.priority === 'auto') {
+                    task.priority = 'auto';
+                }
                 task.updatedAt = new Date().toISOString();
                 updated = true;
+                updatedTask = task;
             }
         });
 
         if (updated) {
             saveAllData(allData);
             renderAll();
-            showToast(`Task deadline updated to ${newDueDate}`, 'success');
+            const eff = updatedTask ? computeUrgencyAndPriority(updatedTask.dueDate, updatedTask.priority, updatedTask.alertDays, new Date()) : null;
+            const prioMsg = eff ? ` (${eff.priority.toUpperCase()} Priority)` : '';
+            showToast(`Task deadline updated to ${newDueDate}${prioMsg}`, 'success');
         }
     }
 
@@ -2258,11 +2320,19 @@
         const presetBtns = elements.extendModal.querySelectorAll('.btn-extend-preset');
         presetBtns.forEach(b => b.classList.remove('active'));
 
+        renderPriorityPreview(
+            elements.extendCustomDate.value,
+            task.priority,
+            task.alertDays,
+            elements.extendPriorityPreview
+        );
+
         elements.extendModal.classList.remove('hidden');
     }
 
     function closeExtendModal() {
         elements.extendModal.classList.add('hidden');
+        if (elements.extendPriorityPreview) elements.extendPriorityPreview.style.display = 'none';
         targetExtendTask = null;
     }
 
@@ -2288,12 +2358,40 @@
         editModalSubtasks = Array.isArray(task.subtasks) ? JSON.parse(JSON.stringify(task.subtasks)) : [];
         renderEditModalSubtasks();
 
+        renderPriorityPreview(
+            task.dueDate,
+            elements.editTaskPriority.value,
+            elements.editTaskAlertDays.value,
+            elements.editPriorityPreview
+        );
+
+        if (elements.editQuickPresetChips) {
+            const todayStr = toISODateString(new Date());
+            const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
+            const tmrwStr = toISODateString(tmrw);
+            const p3 = new Date(); p3.setDate(p3.getDate() + 3);
+            const p3Str = toISODateString(p3);
+            const p7 = new Date(); p7.setDate(p7.getDate() + 7);
+            const p7Str = toISODateString(p7);
+
+            elements.editQuickPresetChips.querySelectorAll('.btn-preset-chip').forEach(c => {
+                const p = c.dataset.preset;
+                c.classList.toggle('active',
+                    (p === 'today' && task.dueDate === todayStr) ||
+                    (p === 'tomorrow' && task.dueDate === tmrwStr) ||
+                    (p === '+3d' && task.dueDate === p3Str) ||
+                    (p === '+7d' && task.dueDate === p7Str)
+                );
+            });
+        }
+
         elements.editModal.classList.remove('hidden');
         elements.editTaskTitle.focus();
     }
 
     function closeEditModal() {
         elements.editModal.classList.add('hidden');
+        if (elements.editPriorityPreview) elements.editPriorityPreview.style.display = 'none';
         editModalSubtasks = [];
     }
 
@@ -2434,6 +2532,10 @@
             elements.taskTitleInput.value = '';
             elements.taskDueDateInput.value = '';
             elements.taskTimeInput.value = '';
+            if (elements.addPriorityPreview) elements.addPriorityPreview.style.display = 'none';
+            if (elements.addQuickPresetChips) {
+                elements.addQuickPresetChips.querySelectorAll('.btn-preset-chip').forEach(c => c.classList.remove('active'));
+            }
             if (elements.taskNotesInput) elements.taskNotesInput.value = '';
             if (elements.taskPinInput) elements.taskPinInput.checked = false;
             draftSubtasks = [];
@@ -2441,25 +2543,84 @@
             elements.taskTitleInput.focus();
         });
 
-        // Add Task - Quick Deadline Preset Chips
-        const presetChips = document.querySelectorAll('.deadline-preset-chip');
-        presetChips.forEach(chip => {
-            chip.addEventListener('click', (e) => {
-                e.preventDefault();
-                const preset = chip.dataset.preset;
-                const target = new Date();
-                if (preset === 'tomorrow') {
-                    target.setDate(target.getDate() + 1);
-                } else if (preset === '+3d') {
-                    target.setDate(target.getDate() + 3);
-                } else if (preset === '+7d') {
-                    target.setDate(target.getDate() + 7);
-                }
-                if (elements.taskDueDateInput) {
-                    elements.taskDueDateInput.value = toISODateString(target);
-                }
+        // Quick Deadline Preset Chips & Dynamic Priority Previews (Add & Edit Forms)
+        const wirePresetChipsAndPreview = (container, dateInput, previewEl, prioritySelect, alertDaysInput) => {
+            if (!container || !dateInput) return;
+
+            const updatePreview = () => {
+                const val = dateInput.value;
+                const todayStr = toISODateString(new Date());
+                const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
+                const tmrwStr = toISODateString(tmrw);
+                const p3 = new Date(); p3.setDate(p3.getDate() + 3);
+                const p3Str = toISODateString(p3);
+                const p7 = new Date(); p7.setDate(p7.getDate() + 7);
+                const p7Str = toISODateString(p7);
+
+                container.querySelectorAll('.btn-preset-chip').forEach(c => {
+                    const p = c.dataset.preset;
+                    c.classList.toggle('active',
+                        (p === 'today' && val === todayStr) ||
+                        (p === 'tomorrow' && val === tmrwStr) ||
+                        (p === '+3d' && val === p3Str) ||
+                        (p === '+7d' && val === p7Str)
+                    );
+                });
+
+                renderPriorityPreview(
+                    val,
+                    prioritySelect ? prioritySelect.value : 'auto',
+                    alertDaysInput ? alertDaysInput.value : 2,
+                    previewEl
+                );
+            };
+
+            container.querySelectorAll('.btn-preset-chip').forEach(chip => {
+                chip.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const preset = chip.dataset.preset;
+                    const target = new Date();
+                    if (preset === 'today') {
+                        // Keep today
+                    } else if (preset === 'tomorrow') {
+                        target.setDate(target.getDate() + 1);
+                    } else if (preset === '+3d') {
+                        target.setDate(target.getDate() + 3);
+                    } else if (preset === '+7d') {
+                        target.setDate(target.getDate() + 7);
+                    }
+                    dateInput.value = toISODateString(target);
+                    updatePreview();
+                });
             });
-        });
+
+            dateInput.addEventListener('input', updatePreview);
+            dateInput.addEventListener('change', updatePreview);
+            if (prioritySelect) prioritySelect.addEventListener('change', updatePreview);
+            if (alertDaysInput) {
+                alertDaysInput.addEventListener('input', updatePreview);
+                alertDaysInput.addEventListener('change', updatePreview);
+            }
+        };
+
+        // Wire Add Task Form
+        wirePresetChipsAndPreview(
+            elements.addQuickPresetChips,
+            elements.taskDueDateInput,
+            elements.addPriorityPreview,
+            elements.taskPrioritySelect,
+            elements.taskAlertDaysInput
+        );
+
+        // Wire Edit Task Modal
+        wirePresetChipsAndPreview(
+            elements.editQuickPresetChips,
+            elements.editTaskDueDate,
+            elements.editPriorityPreview,
+            elements.editTaskPriority,
+            elements.editTaskAlertDays
+        );
 
         // Add Task - Extra Options Drawer Toggle
         if (elements.btnToggleAddExtra && elements.addExtraContainer) {
@@ -2527,29 +2688,6 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 showToast('Tasks exported to CSV successfully!', 'success');
-            });
-        }
-        if (elements.btnSendTestEmail) {
-            elements.btnSendTestEmail.addEventListener('click', async () => {
-                elements.btnSendTestEmail.disabled = true;
-                showToast('Sending test email via SMTP...', 'info');
-                try {
-                    const res = await fetch('/api/send-test-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({})
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        showToast('Test email sent to shpranav00009@gmail.com! 📬', 'success');
-                    } else {
-                        showToast('Failed to send email: ' + (data.error || 'Server error'), 'error');
-                    }
-                } catch (e) {
-                    showToast('Could not reach sync server', 'error');
-                } finally {
-                    elements.btnSendTestEmail.disabled = false;
-                }
             });
         }
         if (elements.backupFileInput) {
@@ -2805,9 +2943,28 @@
                 }
                 
                 baseDate.setDate(baseDate.getDate() + daysToAdd);
-                elements.extendCustomDate.value = toISODateString(baseDate);
+                const newDateStr = toISODateString(baseDate);
+                elements.extendCustomDate.value = newDateStr;
+
+                renderPriorityPreview(
+                    newDateStr,
+                    targetExtendTask ? targetExtendTask.priority : 'auto',
+                    targetExtendTask ? targetExtendTask.alertDays : 2,
+                    elements.extendPriorityPreview
+                );
             });
         });
+
+        if (elements.extendCustomDate) {
+            elements.extendCustomDate.addEventListener('input', () => {
+                renderPriorityPreview(
+                    elements.extendCustomDate.value,
+                    targetExtendTask ? targetExtendTask.priority : 'auto',
+                    targetExtendTask ? targetExtendTask.alertDays : 2,
+                    elements.extendPriorityPreview
+                );
+            });
+        }
 
         elements.btnSaveExtend.addEventListener('click', (e) => {
             e.preventDefault();
@@ -3003,7 +3160,8 @@
         batchMovePending,
         batchClearCompleted,
         createUndoAction,
-        applyUndoAction
+        applyUndoAction,
+        renderPriorityPreview
     };
 });
 

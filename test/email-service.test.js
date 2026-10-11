@@ -19,7 +19,7 @@ test('Email Service — Configuration has valid SMTP credentials and spreadsheet
     assert.strictEqual(CONFIG.smtpHost, 'smtp.gmail.com');
     assert.strictEqual(CONFIG.smtpPort, 465);
     assert.strictEqual(CONFIG.smtpUser, 'pranav2410991479@gmail.com');
-    assert.strictEqual(CONFIG.notifyEmail, 'shpranav00009@gmail.com');
+    assert.strictEqual(CONFIG.notifyEmail, 'shpranav1008@gmail.com');
     assert.ok(CONFIG.spreadsheetUrl.includes('1qEQaXyeo_lEQwfSCEHsdbSOjnc0j-pBQtQDhk1PjKro'));
 });
 
