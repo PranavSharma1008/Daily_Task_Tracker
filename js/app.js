@@ -129,13 +129,14 @@
         let isOverdue = false;
 
         if (diffDays < 0) {
-            // OVERDUE: End date has passed!
-            const absDays = Math.abs(diffDays);
-            dueLabel = `🚨 OVERDUE! Due ${dueFormatted} (${absDays}d overdue)`;
-            duePillClass = 'overdue';
-            isOverdue = true;
-            isUrgent = true;
-            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'urgent';
+            // PAST DEADLINE: End date has passed!
+            // Per user rule: alerts only run leading up to the deadline (e.g. 2 days before through due date).
+            // Once the deadline passes, cease alert messages ("after 20 i dont show this message like in this way 5 day overdue i dont need this")
+            dueLabel = `📅 Due ${dueFormatted}`;
+            duePillClass = 'normal';
+            isOverdue = false;
+            isUrgent = false;
+            if (priorityMode === 'auto' || !priorityMode) effectivePriority = 'medium';
         } else if (diffDays === 0) {
             // DUE TODAY / DUE ON VIEWED DATE: Present Day Alert!
             const isRealToday = isSameDay(baseDate, new Date());
@@ -184,9 +185,9 @@
 
         let icon = '📅';
         let text = '';
-        if (info.isOverdue) {
-            icon = '🚨';
-            text = `OVERDUE (${Math.abs(info.diffDays)}d) → URGENT Alert`;
+        if (info.diffDays < 0) {
+            icon = '📅';
+            text = `Past Deadline (${info.dueFormatted})`;
         } else if (info.diffDays === 0) {
             icon = '🔴';
             text = `Due Today → URGENT Present Day Alert`;
@@ -961,7 +962,16 @@
             tasks.forEach(task => {
                 if (!task || !task.id) return;
                 if (!task.completed) {
-                    if (dateKey === dateStr) {
+                    const isDirectDate = (dateKey === dateStr);
+                    const isDueDate = (task.dueDate === dateStr);
+                    let isInAlertWindow = false;
+                    if (task.dueDate) {
+                        const alertThreshold = task.alertDays != null && task.alertDays !== '' ? parseInt(task.alertDays, 10) : 2;
+                        const diff = calendarDayDifference(dateStr, task.dueDate);
+                        isInAlertWindow = (diff >= 0 && diff <= alertThreshold);
+                    }
+
+                    if (isDirectDate || isDueDate || isInAlertWindow) {
                         if (!pendingForDate.some(t => t.id === task.id)) {
                             pendingForDate.push(task);
                         }
@@ -1534,8 +1544,8 @@
     function checkUrgentTaskDeadlines() {
         const allData = loadAllData();
         const urgentTasks = [];
-        const viewDate = new Date(currentDate);
-        viewDate.setHours(0, 0, 0, 0);
+        const evalDate = new Date(currentDate);
+        evalDate.setHours(0, 0, 0, 0);
 
         dataKeys(allData).forEach(dateKey => {
             const tasks = allData[dateKey];
@@ -1547,10 +1557,14 @@
                         task.dueDate,
                         task.priority || 'auto',
                         task.alertDays != null ? task.alertDays : 2,
-                        viewDate
+                        evalDate
                     );
-                    if (info.isUrgent) {
-                        urgentTasks.push({ ...task, dueInfo: info, taskDateStr: dateKey });
+                    // Alerts only run leading up to the deadline (diffDays >= 0).
+                    // Once the deadline has passed (after due date), alert stops.
+                    if (info.isUrgent && info.diffDays >= 0) {
+                        if (!urgentTasks.some(t => t.id === task.id)) {
+                            urgentTasks.push({ ...task, dueInfo: info, taskDateStr: dateKey });
+                        }
                     }
                 }
             });
@@ -1558,13 +1572,7 @@
 
         if (urgentTasks.length > 0) {
             elements.urgentDeadlineBanner.classList.remove('hidden');
-
-            const overdueCount = urgentTasks.filter(t => t.dueInfo.isOverdue).length;
-            if (overdueCount > 0) {
-                elements.bannerTitle.textContent = `🚨 High Alert: ${overdueCount} Overdue & ${urgentTasks.length - overdueCount} Urgent Task${urgentTasks.length > 1 ? 's' : ''}!`;
-            } else {
-                elements.bannerTitle.textContent = `🚨 High Alert: ${urgentTasks.length} Urgent Task${urgentTasks.length > 1 ? 's' : ''} Require Attention!`;
-            }
+            elements.bannerTitle.textContent = `🚨 High Alert: ${urgentTasks.length} Urgent Deadline${urgentTasks.length > 1 ? 's' : ''} Approaching!`;
 
             elements.urgentCardsContainer.innerHTML = '';
 
@@ -1573,23 +1581,20 @@
                 card.className = `urgent-red-card ${task.dueInfo.duePillClass}`;
                 card.dataset.id = task.id;
 
-                const icon = task.dueInfo.isOverdue ? '🚨' : (task.dueInfo.diffDays === 0 ? '🔴' : '🔥');
-
                 card.innerHTML = `
                     <div class="urgent-red-left">
-                        <span class="urgent-red-icon">${icon}</span>
+                        <span class="urgent-red-icon">
+                            <span class="alert-beacon-wrap" title="${escapeHTML(task.dueInfo.dueLabel)}">
+                                <span class="beacon-core"></span>
+                                <span class="beacon-ring"></span>
+                            </span>
+                        </span>
                         <div class="urgent-red-content">
                             <h4 class="urgent-red-title">${escapeHTML(task.title)}</h4>
                             <span class="urgent-red-status ${task.dueInfo.duePillClass}">${escapeHTML(task.dueInfo.dueLabel)}</span>
                         </div>
                     </div>
                     <div class="urgent-red-actions">
-                        ${task.dueInfo.isOverdue ? `
-                            <button class="btn-urgent-action reschedule" title="Reschedule to Today">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
-                                <span>Today</span>
-                            </button>
-                        ` : ''}
                         <button class="btn-urgent-action edit" title="Edit Task">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                             <span>Edit</span>
@@ -1600,13 +1605,6 @@
                         </button>
                     </div>
                 `;
-
-                const rescheduleBtn = card.querySelector('.btn-urgent-action.reschedule');
-                if (rescheduleBtn) {
-                    rescheduleBtn.addEventListener('click', () => {
-                        updateTaskDueDate(task.id, toISODateString(new Date()));
-                    });
-                }
 
                 const editBtn = card.querySelector('.btn-urgent-action.edit');
                 if (editBtn) {
@@ -1703,9 +1701,6 @@
     function createTaskCardElement(task) {
         const card = document.createElement('div');
         const isPinned = Boolean(task.isPinned);
-        card.className = `task-card ${task.completed ? 'completed' : ''} ${isPinned ? 'pinned' : ''}`;
-        card.dataset.id = task.id;
-        card.setAttribute('draggable', 'true');
 
         const urgencyInfo = computeUrgencyAndPriority(
             task.dueDate,
@@ -1715,6 +1710,12 @@
         );
         const effectivePriority = urgencyInfo.priority;
         const formattedTime = task.time ? formatTimeDisplay(task.time) : '';
+
+        const hasActiveAlert = !task.completed && urgencyInfo.isUrgent && urgencyInfo.diffDays >= 0;
+        const alertClass = hasActiveAlert ? `has-alert alert-${urgencyInfo.duePillClass}` : '';
+        card.className = `task-card ${task.completed ? 'completed' : ''} ${isPinned ? 'pinned' : ''} ${alertClass}`.trim();
+        card.dataset.id = task.id;
+        card.setAttribute('draggable', 'true');
 
         const categoryDisplayMap = {
             'Health': 'Health & Fitness',
@@ -1744,6 +1745,7 @@
                         <span class="priority-pill ${effectivePriority}">${effectivePriority} Priority</span>
                         ${urgencyInfo.dueLabel ? `
                             <span class="duedate-pill ${urgencyInfo.duePillClass}">
+                                ${hasActiveAlert ? `<span class="alert-beacon-dot"></span>` : ''}
                                 ${escapeHTML(urgencyInfo.dueLabel)}
                             </span>
                         ` : ''}

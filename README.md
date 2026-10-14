@@ -71,6 +71,14 @@ A modern, fast, and fully responsive **Daily Task Tracker** built with pure **HT
 - **Smart Anti-Spam Deduplication**: Ledger records sent notifications so you receive exactly one alert per task per day and one sheet checkpoint per scheduled time window.
 - **Zero External Dependencies**: Implemented natively via Node.js `node:tls` socket protocol connecting directly to `smtp.gmail.com:465`.
 
+### 12. 🎵 Background Songs Player & Shuffled Playlist
+- **Top Header Button**: Quick-access Songs button in the top navigation with live equalizer wave animation when playing.
+- **Shuffled Playlist Engine**: Fisher-Yates random shuffle algorithm keeps tracks fresh each session.
+- **Automated Future Song Discovery (GitHub + Vercel)**: Drop any audio file (`.mp3`, `.wav`, `.ogg`, `.m4a`) into `songs/` and push to GitHub/Vercel — it is automatically detected and added to your playlist with zero manual code changes.
+- **Custom User Preferences**: Remembers volume, mute status, shuffle mode, repeat/loop mode, and optional auto-play on visit via `localStorage`.
+- **Dockable Floating Mini Player**: Control tracks, volume, and playback anywhere across DayTask without leaving your task list.
+- **Keyboard Shortcuts**: Tap <kbd>P</kbd> to play/pause, <kbd>[</kbd> for previous track, and <kbd>]</kbd> for next track.
+
 ---
 
 ## 🛠️ Technology Stack & Test Suite
@@ -78,7 +86,7 @@ A modern, fast, and fully responsive **Daily Task Tracker** built with pure **HT
 - **Frontend**: HTML5, Vanilla CSS3 (Custom CSS variables), Vanilla JavaScript (ES6+)
 - **Backend / Sync**: Node.js (built-in modules only — zero npm dependencies)
 - **Data Persistence**: `data.json` on the server + `localStorage` cache on each device (works offline)
-- **Unit Testing**: Native Node.js test runner (`node:test`, `node:assert/strict`) — 63 tests across 11 test suites with 100% pass rate. Run via `npm test`.
+- **Unit Testing**: Native Node.js test runner (`node:test`, `node:assert/strict`) — 73 tests across 12 test suites with 100% pass rate. Run via `npm test`.
 
 ---
 

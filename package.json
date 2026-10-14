@@ -4,6 +4,8 @@
   "description": "DayTask — cross-device daily task tracker with a zero-dependency Node sync server",
   "main": "server.js",
   "scripts": {
+    "build": "node scripts/generate-songs-manifest.js",
+    "prestart": "node scripts/generate-songs-manifest.js",
     "start": "node server.js",
     "test": "node --test test/*.test.js"
   },

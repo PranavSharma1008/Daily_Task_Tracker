@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "node scripts/generate-songs-manifest.js",
+  "headers": [
+    {
+      "source": "/songs/(.*)",
+      "headers": [
+        { "key": "Accept-Ranges", "value": "bytes" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/(songs/manifest.json|songs/songs.json)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ]
+}

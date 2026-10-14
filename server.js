@@ -39,7 +39,14 @@ const MIME_TYPES = {
     '.ico': 'image/x-icon',
     '.webmanifest': 'application/manifest+json',
     '.txt': 'text/plain; charset=utf-8',
-    '.md': 'text/plain; charset=utf-8'
+    '.md': 'text/plain; charset=utf-8',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.m4a': 'audio/mp4',
+    '.aac': 'audio/aac',
+    '.flac': 'audio/flac',
+    '.webm': 'audio/webm'
 };
 
 // ------------------------------------------------------------------
@@ -125,10 +132,84 @@ function setCommonHeaders(res) {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 }
 
-function serveStatic(res, pathname, publicDir = DEFAULT_PUBLIC_DIR) {
+const AUDIO_EXTS = new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.webm']);
+
+function formatSongTitle(filename) {
+    const base = filename.replace(/\.[^/.]+$/, '');
+    const audioDateMatch = base.match(/^AUDIO[-_](\d{4})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})(.*)$/i);
+    if (audioDateMatch) {
+        const [_, year, month, day, hour, min, sec, extra] = audioDateMatch;
+        let suffix = extra.replace(/[-_]/g, ' ').trim();
+        if (suffix) suffix = ` (${suffix})`;
+        return `Track ${hour}:${min}:${sec}${suffix}`;
+    }
+    return base
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .trim();
+}
+
+function getSongsList(publicDir = DEFAULT_PUBLIC_DIR) {
+    const primaryDir = path.join(publicDir, 'songs');
+    const legacyDir = path.join(publicDir, 'songs ');
+    let targetDir = fs.existsSync(primaryDir) ? primaryDir : (fs.existsSync(legacyDir) ? legacyDir : null);
+
+    if (!targetDir) {
+        return [];
+    }
+
+    try {
+        const files = fs.readdirSync(targetDir);
+        const songs = [];
+        let index = 1;
+
+        for (const file of files) {
+            if (file.startsWith('.') || file.endsWith('.json') || file.endsWith('.md')) continue;
+            const ext = path.extname(file).toLowerCase();
+            if (!AUDIO_EXTS.has(ext)) continue;
+
+            const fullPath = path.join(targetDir, file);
+            let size = 0;
+            let mtime = new Date().toISOString();
+            try {
+                const stat = fs.statSync(fullPath);
+                if (!stat.isFile()) continue;
+                size = stat.size;
+                mtime = stat.mtime.toISOString();
+            } catch (e) {}
+
+            songs.push({
+                id: `song-${index++}`,
+                filename: file,
+                title: formatSongTitle(file),
+                url: `songs/${encodeURIComponent(file)}`,
+                size,
+                ext,
+                updatedAt: mtime
+            });
+        }
+        return songs;
+    } catch (e) {
+        console.error('[DayTask Songs] Error reading songs dir:', e.message);
+        return [];
+    }
+}
+
+function serveStatic(res, pathname, publicDir = DEFAULT_PUBLIC_DIR, req = null) {
     let rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
     const resolvedPublic = path.resolve(publicDir);
-    const resolvedPath = path.resolve(publicDir, rel);
+    let resolvedPath = path.resolve(publicDir, rel);
+
+    // If path is under songs and doesn't exist directly, check with/without trailing space
+    if (!fs.existsSync(resolvedPath)) {
+        if (rel.startsWith('songs/')) {
+            const altPath = path.resolve(publicDir, rel.replace(/^songs\//, 'songs /'));
+            if (fs.existsSync(altPath)) resolvedPath = altPath;
+        } else if (rel.startsWith('songs /')) {
+            const altPath = path.resolve(publicDir, rel.replace(/^songs \//, 'songs/'));
+            if (fs.existsSync(altPath)) resolvedPath = altPath;
+        }
+    }
 
     // Path traversal protection
     if (rel.includes('..') || (!resolvedPath.startsWith(resolvedPublic + path.sep) && resolvedPath !== path.join(resolvedPublic, 'index.html'))) {
@@ -148,11 +229,46 @@ function serveStatic(res, pathname, publicDir = DEFAULT_PUBLIC_DIR) {
     fs.stat(resolvedPath, (err, stat) => {
         if (!err && stat.isFile()) {
             const ext = path.extname(resolvedPath).toLowerCase();
+            const rangeHeader = req && req.headers ? req.headers.range : null;
+
+            // Handle HTTP 206 Range requests for audio streaming/scrubbing
+            if (rangeHeader && stat.size > 0 && rangeHeader.startsWith('bytes=')) {
+                const parts = rangeHeader.replace(/bytes=/, '').split('-');
+                const start = parseInt(parts[0], 10) || 0;
+                const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+
+                if (start >= stat.size || end >= stat.size || start > end) {
+                    res.writeHead(416, {
+                        'Content-Range': `bytes */${stat.size}`,
+                        'Content-Type': 'text/plain; charset=utf-8'
+                    });
+                    res.end('Requested range not satisfiable');
+                    return;
+                }
+
+                const chunksize = (end - start) + 1;
+                res.writeHead(206, {
+                    'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': chunksize,
+                    'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+                    'Cache-Control': 'no-cache, must-revalidate'
+                });
+                fs.createReadStream(resolvedPath, { start, end }).pipe(res);
+                return;
+            }
+
             const headers = {
                 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+                'Content-Length': stat.size,
+                'Accept-Ranges': 'bytes',
                 'Cache-Control': 'no-cache, must-revalidate'
             };
             res.writeHead(200, headers);
+            if (req && req.method === 'HEAD') {
+                res.end();
+                return;
+            }
             fs.createReadStream(resolvedPath).pipe(res);
         } else {
             res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -326,13 +442,44 @@ function createServer({ dataFile = (process.env.DATA_FILE_PATH || DEFAULT_DATA_F
             return;
         }
 
-        if (req.method !== 'GET') {
+        // Songs Discovery API - dynamically scans songs/ directory
+        if (pathname === '/api/songs' || pathname === '/api/songs/') {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            if (req.method === 'GET') {
+                const songs = getSongsList(publicDir);
+                // Sync manifest.json on disk if directory exists
+                try {
+                    const manifestDir = path.join(publicDir, 'songs');
+                    if (fs.existsSync(manifestDir)) {
+                        const manifest = {
+                            updatedAt: new Date().toISOString(),
+                            count: songs.length,
+                            songs: songs
+                        };
+                        fs.writeFileSync(path.join(manifestDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+                    }
+                } catch (e) {}
+
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({
+                    success: true,
+                    count: songs.length,
+                    songs: songs
+                }));
+                return;
+            }
             res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
             res.end('Method not allowed');
             return;
         }
 
-        serveStatic(res, pathname, publicDir);
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end('Method not allowed');
+            return;
+        }
+
+        serveStatic(res, pathname, publicDir, req);
     });
 }
 
@@ -396,6 +543,8 @@ module.exports = {
     isDateKey,
     taskTimestamp,
     serveStatic,
+    getSongsList,
+    formatSongTitle,
     startEmailAlertScheduler,
     DEFAULT_DATA_FILE,
     DEFAULT_PUBLIC_DIR,

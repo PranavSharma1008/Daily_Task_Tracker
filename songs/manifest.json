@@ -1,0 +1,69 @@
+{
+  "updatedAt": "2026-10-14T12:30:29.148Z",
+  "count": 7,
+  "songs": [
+    {
+      "id": "song-1",
+      "filename": "AUDIO-2026-10-14-16-49-21.mp3",
+      "title": "Track 16:49:21",
+      "url": "songs/AUDIO-2026-10-14-16-49-21.mp3",
+      "size": 457747,
+      "ext": ".mp3",
+      "updatedAt": "2026-10-14T11:26:38.028Z"
+    },
+    {
+      "id": "song-2",
+      "filename": "AUDIO-2026-10-14-16-49-37 copy.mp3",
+      "title": "Track 16:49:37 (copy)",
+      "url": "songs/AUDIO-2026-10-14-16-49-37%20copy.mp3",
+      "size": 608216,
+      "ext": ".mp3",
+      "updatedAt": "2026-10-14T11:27:08.930Z"
+    },
+    {
+      "id": "song-3",
+      "filename": "AUDIO-2026-10-14-16-49-37.mp3",
+      "title": "Track 16:49:37",
+      "url": "songs/AUDIO-2026-10-14-16-49-37.mp3",
+      "size": 975260,
+      "ext": ".mp3",
+      "updatedAt": "2026-10-14T11:27:01.637Z"
+    },
+    {
+      "id": "song-4",
+      "filename": "AUDIO-2026-10-14-16-49-38.mp3",
+      "title": "Track 16:49:38",
+      "url": "songs/AUDIO-2026-10-14-16-49-38.mp3",
+      "size": 249080,
+      "ext": ".mp3",
+      "updatedAt": "2026-10-14T11:27:15.356Z"
+    },
+    {
+      "id": "song-5",
+      "filename": "AUDIO-2026-10-14-16-49-51.mp3",
+      "title": "Track 16:49:51",
+      "url": "songs/AUDIO-2026-10-14-16-49-51.mp3",
+      "size": 880804,
+      "ext": ".mp3",
+      "updatedAt": "2026-10-14T11:27:20.763Z"
+    },
+    {
+      "id": "song-6",
+      "filename": "AUDIO-2026-10-14-16-49-57.mp3",
+      "title": "Track 16:49:57",
+      "url": "songs/AUDIO-2026-10-14-16-49-57.mp3",
+      "size": 651626,
+      "ext": ".mp3",
+      "updatedAt": "2026-10-14T11:27:29.745Z"
+    },
+    {
+      "id": "song-7",
+      "filename": "AUDIO-2026-10-14-16-50-21.mp3",
+      "title": "Track 16:50:21",
+      "url": "songs/AUDIO-2026-10-14-16-50-21.mp3",
+      "size": 670372,
+      "ext": ".mp3",
+      "updatedAt": "2026-10-14T11:27:36.127Z"
+    }
+  ]
+}

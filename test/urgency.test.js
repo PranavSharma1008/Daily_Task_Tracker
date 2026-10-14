@@ -14,17 +14,16 @@ test('Urgency Calculator — Task without due date', () => {
     assert.strictEqual(customRes.priority, 'high');
 });
 
-test('Urgency Calculator — Overdue Task (diffDays < 0)', () => {
+test('Urgency Calculator — Past Deadline Task (diffDays < 0)', () => {
     const baseDate = new Date(2026, 7, 15); // Aug 15, 2026
     const res = computeUrgencyAndPriority('2026-08-12', 'auto', 2, baseDate);
 
     assert.strictEqual(res.diffDays, -3);
-    assert.strictEqual(res.isOverdue, true);
-    assert.strictEqual(res.isUrgent, true);
-    assert.strictEqual(res.duePillClass, 'overdue');
-    assert.strictEqual(res.priority, 'urgent', 'Auto priority must escalate overdue tasks to urgent');
-    assert.match(res.dueLabel, /OVERDUE/);
-    assert.match(res.dueLabel, /3d overdue/);
+    assert.strictEqual(res.isOverdue, false, 'Overdue alerts turned off past deadline');
+    assert.strictEqual(res.isUrgent, false, 'Urgency alert ceases once deadline has passed');
+    assert.strictEqual(res.duePillClass, 'normal');
+    assert.strictEqual(res.priority, 'medium', 'Auto priority returns to medium once deadline passes');
+    assert.strictEqual(res.dueLabel, '📅 Due Aug 12');
 });
 
 test('Urgency Calculator — Due Today (diffDays === 0)', () => {
@@ -128,4 +127,48 @@ test('Urgency Calculator — renderPriorityPreview generates accurate DOM class 
     // Test No date
     renderPriorityPreview('', 'auto', 2, mockEl, baseDate);
     assert.strictEqual(mockEl.style.display, 'none');
+});
+
+test('Urgency Calculator — User Scenario: Deadline on Oct 20 with 2-day reminder alerts on Oct 18-20, ceases alert after Oct 20', () => {
+    const dueDate = '2026-10-20';
+    const threshold = 2;
+
+    // Day 1: Oct 17 (3 days before) -> Outside alert window
+    const oct17 = new Date(2026, 9, 17);
+    const res17 = computeUrgencyAndPriority(dueDate, 'auto', threshold, oct17);
+    assert.strictEqual(res17.isUrgent, false);
+    assert.strictEqual(res17.priority, 'medium');
+    assert.match(res17.dueLabel, /Alert on Oct 18/);
+
+    // Day 2: Oct 18 (2 days before) -> Starts alert window
+    const oct18 = new Date(2026, 9, 18);
+    const res18 = computeUrgencyAndPriority(dueDate, 'auto', threshold, oct18);
+    assert.strictEqual(res18.isUrgent, true);
+    assert.strictEqual(res18.priority, 'urgent');
+    assert.match(res18.dueLabel, /HIGH ALERT/);
+    assert.match(res18.dueLabel, /2 days left/);
+
+    // Day 3: Oct 19 (1 day before) -> Inside alert window
+    const oct19 = new Date(2026, 9, 19);
+    const res19 = computeUrgencyAndPriority(dueDate, 'auto', threshold, oct19);
+    assert.strictEqual(res19.isUrgent, true);
+    assert.strictEqual(res19.priority, 'urgent');
+    assert.match(res19.dueLabel, /HIGH ALERT/);
+    assert.match(res19.dueLabel, /1 day left/);
+
+    // Day 4: Oct 20 (Due today) -> Inside alert window
+    const oct20 = new Date(2026, 9, 20);
+    const res20 = computeUrgencyAndPriority(dueDate, 'auto', threshold, oct20);
+    assert.strictEqual(res20.isUrgent, true);
+    assert.strictEqual(res20.priority, 'urgent');
+    assert.match(res20.dueLabel, /PRESENT DAY ALERT/);
+
+    // Day 5: Oct 25 (5 days after Oct 20) -> Deadline passed, alert stops! No "5 day overdue" alert message!
+    const oct25 = new Date(2026, 9, 25);
+    const res25 = computeUrgencyAndPriority(dueDate, 'auto', threshold, oct25);
+    assert.strictEqual(res25.isUrgent, false, 'Must not be urgent after Oct 20');
+    assert.strictEqual(res25.isOverdue, false, 'Must not trigger overdue alert');
+    assert.strictEqual(res25.priority, 'medium', 'Must return to medium');
+    assert.strictEqual(res25.dueLabel, '📅 Due Oct 20', 'Must not show "5 day overdue" message');
+    assert.doesNotMatch(res25.dueLabel, /overdue/i);
 });

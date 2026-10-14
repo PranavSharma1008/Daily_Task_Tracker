@@ -62,11 +62,11 @@ test('Edge Cases — Extreme Thresholds & Auto-Escalation', () => {
     assert.strictEqual(resYearAhead.isUrgent, true);
     assert.strictEqual(resYearAhead.priority, 'urgent');
 
-    // Threshold of 0 days for overdue task
+    // Threshold of 0 days for past deadline task (alert ceases after deadline passes)
     const resOverdueZero = computeUrgencyAndPriority('2026-08-14', 'auto', 0, today);
-    assert.strictEqual(resOverdueZero.isOverdue, true);
-    assert.strictEqual(resOverdueZero.isUrgent, true);
-    assert.strictEqual(resOverdueZero.priority, 'urgent');
+    assert.strictEqual(resOverdueZero.isOverdue, false);
+    assert.strictEqual(resOverdueZero.isUrgent, false);
+    assert.strictEqual(resOverdueZero.priority, 'medium');
 });
 
 test('Edge Cases — Store Merge Task Deduplication across multiple dates', () => {

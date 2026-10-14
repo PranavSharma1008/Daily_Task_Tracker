@@ -12,6 +12,7 @@
     <!-- Fast Google Sheets Preconnect -->
     <link rel="preconnect" href="https://docs.google.com">
     <link rel="dns-prefetch" href="https://docs.google.com">
+    <link rel="icon" type="image/png" href="assets/logo.png">
     <!-- CSS Stylesheet -->
     <link rel="stylesheet" href="css/styles.css?v=2.4">
 </head>
@@ -23,8 +24,8 @@
         <!-- HEADER -->
         <header class="app-header">
             <div class="brand">
-                <div class="brand-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                <div class="brand-icon logo-icon-wrap">
+                    <img src="assets/logo.png" alt="DayTask Target Radar Logo" class="brand-logo-img">
                 </div>
                 <div class="brand-text">
                     <h1>DayTask</h1>
@@ -36,11 +37,6 @@
                 <div class="today-badge" id="header-today-display">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                     <span id="current-date-heading">Today</span>
-                </div>
-                <div class="streak-badge" id="header-streak-badge" title="Daily Completion Streak">
-                    <span class="streak-fire">🔥</span>
-                    <span id="streak-counter">0</span>
-                    <span class="streak-unit">streak</span>
                 </div>
             </div>
 
@@ -64,13 +60,17 @@
                 <button id="btn-analytics" class="btn-icon" title="Productivity Analytics (A)" aria-label="Productivity Analytics">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
                 </button>
-                <button id="btn-sound" class="btn-icon" title="Toggle Sound Effects (M)" aria-label="Toggle Sound Effects">
-                    <svg class="sound-on-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-                    <svg class="sound-off-icon hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" x2="23" y1="1" y2="23"/><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></svg>
-                </button>
-                <button id="btn-notifications" class="btn-icon" title="Enable Notifications" aria-label="Enable Alerts">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-                    <span class="notification-indicator hidden" id="notification-indicator"></span>
+                <button id="btn-music" class="btn-icon" title="Songs Player — Shuffled Background Music (P)" aria-label="Open Songs Player">
+                    <svg class="music-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18V5l12-2v13"/>
+                        <circle cx="6" cy="18" r="3"/>
+                        <circle cx="18" cy="16" r="3"/>
+                    </svg>
+                    <span class="music-wave-bars hidden" id="header-music-bars">
+                        <span class="wave-bar bar-1"></span>
+                        <span class="wave-bar bar-2"></span>
+                        <span class="wave-bar bar-3"></span>
+                    </span>
                 </button>
                 <button id="btn-backup" class="btn-icon" title="Backup & Restore Data" aria-label="Backup and Restore Data">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
@@ -738,6 +738,14 @@
                         <span class="shortcut-desc">Toggle Sound Effects</span>
                     </div>
                     <div class="shortcut-item">
+                        <div class="keys"><kbd>P</kbd></div>
+                        <span class="shortcut-desc">Play / Pause Shuffled Music</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="keys"><kbd>[</kbd> / <kbd>]</kbd></div>
+                        <span class="shortcut-desc">Previous / Next Song</span>
+                    </div>
+                    <div class="shortcut-item">
                         <div class="keys"><kbd>D</kbd></div>
                         <span class="shortcut-desc">Toggle Dark / Light Theme</span>
                     </div>
@@ -757,7 +765,189 @@
     <!-- TOAST NOTIFICATION CONTAINER -->
     <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
 
-    <!-- JS Application Script -->
+    <!-- SONGS & MUSIC PLAYER MODAL -->
+    <div class="modal-overlay hidden" id="songs-modal" role="dialog" aria-modal="true" aria-labelledby="songs-modal-title">
+        <div class="modal-card songs-modal-card">
+            <div class="modal-header">
+                <div class="songs-title-group">
+                    <h3 id="songs-modal-title">🎵 Background Songs & Player</h3>
+                    <span class="songs-modal-subtitle">Auto-discovered audio &bull; Shuffled playlist &bull; Focus while working</span>
+                </div>
+                <button class="btn-icon" id="btn-close-songs-modal" title="Close" aria-label="Close dialog">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Modal Nav Tabs -->
+            <div class="songs-modal-tabs" role="tablist">
+                <button type="button" class="songs-tab-btn active" data-tab="now-playing" role="tab" aria-selected="true">
+                    <span>🎧 Now Playing</span>
+                </button>
+                <button type="button" class="songs-tab-btn" data-tab="playlist" role="tab" aria-selected="false">
+                    <span>📜 Playlist (<span id="songs-count-badge">7</span>)</span>
+                </button>
+                <button type="button" class="songs-tab-btn" data-tab="preferences" role="tab" aria-selected="false">
+                    <span>⚙️ Preferences</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: NOW PLAYING -->
+            <div class="songs-tab-pane active" id="tab-pane-now-playing" role="tabpanel">
+                <div class="songs-hero-card">
+                    <div class="songs-disc-wrap">
+                        <div class="songs-hero-disc" id="songs-hero-disc">
+                            <div class="disc-inner-ring">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="songs-track-meta">
+                        <h4 class="songs-hero-title" id="songs-hero-title">Track 16:49:21</h4>
+                        <p class="songs-hero-subtitle" id="songs-hero-subtitle">Queue #1 of 7 &bull; Shuffled</p>
+                    </div>
+
+                    <!-- Progress Bar & Timing -->
+                    <div class="songs-progress-container">
+                        <input type="range" id="songs-progress-bar" class="songs-progress-slider" min="0" max="100" value="0" step="0.1" aria-label="Song seek slider">
+                        <div class="songs-time-row">
+                            <span id="songs-time-current">0:00</span>
+                            <span id="songs-time-total">--:--</span>
+                        </div>
+                    </div>
+
+                    <!-- Main Audio Action Buttons -->
+                    <div class="songs-controls-row">
+                        <button type="button" class="btn-song-ctrl" id="btn-songs-shuffle" title="Toggle Shuffle Mode" aria-label="Toggle Shuffle">
+                            🔀
+                        </button>
+                        <button type="button" class="btn-song-ctrl" id="btn-songs-prev" title="Previous Track ( [ )" aria-label="Previous Track">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"/></svg>
+                        </button>
+                        <button type="button" class="btn-song-play-hero" id="btn-songs-play" title="Play / Pause (P)" aria-label="Play / Pause">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                        </button>
+                        <button type="button" class="btn-song-ctrl" id="btn-songs-next" title="Next Track ( ] )" aria-label="Next Track">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
+                        </button>
+                        <button type="button" class="btn-song-ctrl" id="btn-songs-loop" title="Repeat Mode" aria-label="Repeat Mode">
+                            <span class="loop-icon">🔁</span><span class="loop-badge">All</span>
+                        </button>
+                    </div>
+
+                    <!-- Volume Row -->
+                    <div class="songs-volume-row">
+                        <button type="button" class="btn-song-vol" id="btn-songs-mute" title="Toggle Mute" aria-label="Toggle Mute">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                        </button>
+                        <input type="range" id="songs-volume-slider" class="songs-volume-slider" min="0" max="100" value="60" aria-label="Volume Slider">
+                        <span class="songs-volume-value" id="songs-volume-value">60%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: PLAYLIST -->
+            <div class="songs-tab-pane hidden" id="tab-pane-playlist" role="tabpanel">
+                <div class="songs-playlist-header">
+                    <div class="songs-search-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="text" id="songs-search-input" placeholder="Filter songs by name..." aria-label="Filter songs">
+                    </div>
+                    <div class="songs-playlist-actions">
+                        <button type="button" class="btn-secondary btn-sm" id="btn-songs-reshuffle" title="Re-randomize playback order">
+                            🎲 Re-shuffle
+                        </button>
+                        <button type="button" class="btn-secondary btn-sm" id="btn-songs-refresh" title="Scan for newly added audio files">
+                            ↻ Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="songs-playlist-items" id="songs-playlist-items">
+                    <!-- Populated dynamically by SongsPlayer -->
+                </div>
+
+                <div class="songs-auto-notice">
+                    <span class="notice-icon">⚡</span>
+                    <p><strong>Auto-sync active:</strong> Drop any audio files into the <code>songs/</code> folder in this repo and push to GitHub/Vercel. They are auto-detected and added to your shuffled playlist!</p>
+                </div>
+            </div>
+
+            <!-- TAB 3: PREFERENCES -->
+            <div class="songs-tab-pane hidden" id="tab-pane-preferences" role="tabpanel">
+                <div class="songs-preferences-list">
+                    <label class="pref-item" for="pref-songs-autoplay">
+                        <div class="pref-info">
+                            <span class="pref-title">⚡ Auto-play on Visit</span>
+                            <span class="pref-desc">Automatically begin playing shuffled songs when you open DayTask. (Plays smoothly upon your first tap/click on the page).</span>
+                        </div>
+                        <input type="checkbox" id="pref-songs-autoplay" class="pref-switch">
+                    </label>
+
+                    <label class="pref-item" for="pref-songs-shuffle">
+                        <div class="pref-info">
+                            <span class="pref-title">🔀 Always Start Shuffled</span>
+                            <span class="pref-desc">Keep songs shuffled in random order so you enjoy fresh tracks each session.</span>
+                        </div>
+                        <input type="checkbox" id="pref-songs-shuffle" class="pref-switch" checked>
+                    </label>
+
+                    <div class="pref-item">
+                        <div class="pref-info">
+                            <span class="pref-title">🔁 Playlist Repeat Mode</span>
+                            <span class="pref-desc">What should happen when the end of the shuffled playlist is reached?</span>
+                        </div>
+                        <select id="pref-songs-loop" class="pref-select" aria-label="Repeat Mode">
+                            <option value="all">Loop entire playlist (Re-shuffles automatically)</option>
+                            <option value="one">Repeat single song continuously</option>
+                            <option value="none">Stop playback at end of playlist</option>
+                        </select>
+                    </div>
+
+                    <div class="pref-notice-card">
+                        <h5>💾 Persistent Settings</h5>
+                        <p>All your preferences (volume, shuffle, autoplay, and repeat mode) are automatically saved to your browser so they remain intact across device reloads.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PERSISTENT FLOATING MINI-PLAYER BAR -->
+    <div class="floating-music-bar hidden" id="floating-music-bar" role="region" aria-label="Background Music Quick Controls">
+        <div class="mini-player-left" id="btn-open-songs-from-mini" title="Click to open full Songs player">
+            <div class="mini-player-disc" id="mini-player-disc">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/>
+                </svg>
+            </div>
+            <div class="mini-player-info">
+                <span class="mini-track-title" id="mini-track-title">Track 16:49:21</span>
+                <span class="mini-track-sub" id="mini-track-sub">1/7 (Shuffled)</span>
+            </div>
+        </div>
+
+        <div class="mini-player-controls">
+            <button type="button" class="btn-mini-control" id="btn-mini-shuffle" title="Toggle Shuffle">🔀</button>
+            <button type="button" class="btn-mini-control" id="btn-mini-prev" title="Previous ( [ )">⏮</button>
+            <button type="button" class="btn-mini-play" id="btn-mini-play" title="Play / Pause (P)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            </button>
+            <button type="button" class="btn-mini-control" id="btn-mini-next" title="Next ( ] )">⏭</button>
+        </div>
+
+        <div class="mini-player-right">
+            <button type="button" class="btn-mini-control" id="btn-mini-volume" title="Mute/Unmute">🔊</button>
+            <input type="range" class="mini-volume-slider" id="mini-volume-slider" min="0" max="100" value="60" aria-label="Mini Volume Slider">
+            <button type="button" class="btn-mini-control" id="btn-mini-expand" title="Open Full Songs Tab">⤢</button>
+            <button type="button" class="btn-mini-control" id="btn-mini-close" title="Hide Mini Bar">✕</button>
+        </div>
+    </div>
+
+    <!-- JS Application Scripts -->
     <script src="js/app.js?v=2.4"></script>
+    <script src="js/songs-player.js?v=2.5"></script>
 </body>
 </html>

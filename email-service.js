@@ -343,6 +343,8 @@ function calendarDayDifference(baseDate, targetDateStr) {
     return Math.round(diffMs / (1000 * 60 * 60 * 24));
 }
 
+const IN_FLIGHT_KEYS = new Set();
+
 // ==========================================
 // Main Automated Check & Dispatch Routine
 // ==========================================
@@ -375,17 +377,21 @@ async function checkAndSendAlerts(allData, ledgerFile = CONFIG.ledgerFile, now =
         const alertThreshold = task.alertDays != null ? parseInt(task.alertDays, 10) : 2;
         const diffDays = calendarDayDifference(now, task.dueDate);
 
-        const isOverdue = diffDays < 0;
+        // Alerts only run leading up to the deadline date (isToday or isInAlertWindow).
+        // Once the deadline has passed (diffDays < 0), cease alerts per user requirement.
         const isToday = diffDays === 0;
         const isInAlertWindow = diffDays > 0 && diffDays <= alertThreshold;
 
-        if (isOverdue || isToday || isInAlertWindow) {
+        if (isToday || isInAlertWindow) {
             const ledgerKey = `task_${task.id}_${todayStr}`;
             
-            // Send only once per day per task
-            if (!ledger.sent[ledgerKey]) {
+            // Send only once per day per task; ensure concurrent checks cannot dispatch duplicate emails
+            if (!ledger.sent[ledgerKey] && !IN_FLIGHT_KEYS.has(ledgerKey)) {
+                IN_FLIGHT_KEYS.add(ledgerKey);
+                ledger.sent[ledgerKey] = new Date().toISOString();
+                saveLedger(ledger, ledgerFile);
+
                 let urgencyLabel = `Due in ${diffDays} day(s) (threshold: ${alertThreshold}d)`;
-                if (isOverdue) urgencyLabel = `OVERDUE by ${Math.abs(diffDays)} day(s)!`;
                 if (isToday) urgencyLabel = `DUE TODAY!`;
 
                 // Title format strictly matching user requirement: Remainder Alert <Task Name>
@@ -398,10 +404,13 @@ async function checkAndSendAlerts(allData, ledgerFile = CONFIG.ledgerFile, now =
                         subject,
                         html
                     });
-                    ledger.sent[ledgerKey] = new Date().toISOString();
                     taskAlertsSent++;
                 } catch (err) {
                     console.error(`[EmailService] Failed to send alert for task ${task.id}:`, err.message);
+                    delete ledger.sent[ledgerKey];
+                    saveLedger(ledger, ledgerFile);
+                } finally {
+                    IN_FLIGHT_KEYS.delete(ledgerKey);
                 }
             }
         }
@@ -413,7 +422,11 @@ async function checkAndSendAlerts(allData, ledgerFile = CONFIG.ledgerFile, now =
     const matchedSlot = SPREADSHEET_SCHEDULE.find(s => s.hour === currentHour);
     if (matchedSlot) {
         const slotKey = `sheet_${matchedSlot.hour}_${todayStr}`;
-        if (!ledger.sent[slotKey]) {
+        if (!ledger.sent[slotKey] && !IN_FLIGHT_KEYS.has(slotKey)) {
+            IN_FLIGHT_KEYS.add(slotKey);
+            ledger.sent[slotKey] = new Date().toISOString();
+            saveLedger(ledger, ledgerFile);
+
             const subject = `Remainder Alert: Google Spreadsheet Check-in (${matchedSlot.label})`;
             const html = renderSpreadsheetReminderHtml(matchedSlot.label);
 
@@ -423,10 +436,13 @@ async function checkAndSendAlerts(allData, ledgerFile = CONFIG.ledgerFile, now =
                     subject,
                     html
                 });
-                ledger.sent[slotKey] = new Date().toISOString();
                 sheetAlertsSent++;
             } catch (err) {
                 console.error(`[EmailService] Failed to send sheet reminder for ${matchedSlot.label}:`, err.message);
+                delete ledger.sent[slotKey];
+                saveLedger(ledger, ledgerFile);
+            } finally {
+                IN_FLIGHT_KEYS.delete(slotKey);
             }
         }
     }
